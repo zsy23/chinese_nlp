@@ -51,12 +51,10 @@ $$ (4)
 ## ![result](result.png)
 ### 为了最大化精度，用33 billion词的语料，使用Hierarchical Softmax，词向量维度1000用整个句子作为上下文窗口，能够达到72%的准确略，当只用6B词的语料时，准确度下降到66%，因此大语料至关重要。
 
-## ***word源码细节***
+## ***word2vec源码细节***
 ### https://blog.csdn.net/itplus/article/details/37999613
 
 ## ***参考文献***
 ### [1] Efficient Estimation of Word Representations in Vector Space
 ### [2] Distributed Representations of Words and Phrases and their Compositionality
-## [3] https://blog.csdn.net/itplus/article/details/37969519
-
-#
+### [3] https://blog.csdn.net/itplus/article/details/37969519
