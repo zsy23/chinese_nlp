@@ -1,6 +1,6 @@
 # **中文Embedding近年论文**
 
-# **Joint Learning of Character and Word Embedding**
+# **[Joint Learning of Character and Word Embedding](http://nlp.csai.tsinghua.edu.cn/~lzy/publications/ijcai2015_character.pdf)**
 
 ## **CWE模型**
 
@@ -120,7 +120,7 @@ https://github.com/Leonard-Xu/CWE
 
 #
 
-# **Component-Enhanced Chinese Character Embeddings**
+# **[Component-Enhanced Chinese Character Embeddings](https://arxiv.org/pdf/1508.06669.pdf)**
 
 ## **Component-Enhanced Character Embeddings**
 
@@ -155,7 +155,7 @@ $$
 
 #
 
-# **Improve Chinese Word Embeddings by Exploiting Internal Structure**
+# **[Improve Chinese Word Embeddings by Exploiting Internal Structure](http://www.aclweb.org/anthology/N16-1119)**
 
 ## **SCWE模型**
 
@@ -282,7 +282,7 @@ https://github.com/JianXu123/SCWE
 
 #
 
-# **Multi-Granularity Chinese Word Embedding**
+# **[Multi-Granularity Chinese Word Embedding](https://www.aclweb.org/anthology/D16-1100)**
 
 ## **Multi-Granularity Word Embedding(MGE)模型**
 
@@ -344,7 +344,7 @@ $$ (3)
 
 #
 
-# **Joint Embeddings of Chinese Words, Characters, and Fine-grained Subcharacter Components**
+# **[Joint Embeddings of Chinese Words, Characters, and Fine-grained Subcharacter Components](http://www.cse.ust.hk/~yqsong/papers/2017-EMNLP-ChineseEmbedding.pdf)**
 
 ## **JWE模型**
 
@@ -418,7 +418,7 @@ https://github.com/HKUST-KnowComp/JWE
 
 #
 
-# **How to Generate a Good Word Embedding?**
+# **[How to Generate a Good Word Embedding?](https://arxiv.org/pdf/1507.05523.pdf)**
 
 ## **corpus domain is more important than corpus size**
 
