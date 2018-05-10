@@ -96,9 +96,9 @@ h_i = concatenation(c_{i-T},e_{i-T},...,c_{i+T},e_{i+T})
 $$
 
 ## ***评价方法***
-### 通过词相似和文本分类作为评测任务。用哈工大信息检索研究中心同义词词林扩展版(http://ir.hit.edu.cn/demo/ltp/Sharing_Plan.htm)作为词相似数据集，腾讯新闻(http://www.datatang.com/data/44341 好像失效了)标题作为文本分类数据集。
-### 偏旁部首通过在线新华字典(http://xh.5156edu.com)提取，其余组件通过在新华字典中匹配“从（from）+ X”的模式提取，表示该字含有X这个组件。通过在Hong Kong Com- puter Chinese Basic Component Reference (https://www.ogcio.gov.hk/tc/our_work/business/tech_promotion/ccli/cliac/glyphs_guidelines.html)中匹配“X is only seen”模式来扩充component list。每个字最多取两个组件来构建字向量。
-### 使用中文维基(http://download.wikipedia.com/zhwiki/)作为训练语料。预处理时，去处纯数字和非中文字符，并且忽视出现次数少于10的词。设置上下文窗口为2，取5个negative sampling，向量维度取50。
+### 通过词相似和文本分类作为评测任务。用哈工大信息检索研究中心同义词词林扩展版(http://ir.hit.edu.cn/demo/ltp/Sharing_Plan.htm) 作为词相似数据集，腾讯新闻(http://www.datatang.com/data/44341 好像失效了)标题作为文本分类数据集。
+### 偏旁部首通过在线新华字典(http://xh.5156edu.com) 提取，其余组件通过在新华字典中匹配“从（from）+ X”的模式提取，表示该字含有X这个组件。通过在Hong Kong Computer Chinese Basic Component Reference (https://www.ogcio.gov.hk/tc/our_work/business/tech_promotion/ccli/cliac/glyphs_guidelines.html) 中匹配“X is only seen”模式来扩充component list。每个字最多取两个组件来构建字向量。
+### 使用中文维基(http://download.wikipedia.com/zhwiki/) 作为训练语料。预处理时，去处纯数字和非中文字符，并且忽视出现次数少于10的词。设置上下文窗口为2，取5个negative sampling，向量维度取50。
 ## ![cece_result](cece_result.png)
 ### 词相似用Spearman’s rank correlation作为评价标准。文本分类用标题中字向量的平均作为分类器的输入。和原文描述一致，CBOW比SkipGram差。总的来说char-*模型更好。
 #
@@ -149,7 +149,7 @@ $$
 $$ (5)
 
 ## ***实验设置***
-### 利用英文维基(http://download.wikipedia.com/enwiki/)训练CBOW的英文词向量，用中文维基(http://download.wikipedia.com/zhwiki/)作为语料,把纯数字和非中文字符去掉，用ANSJ(https://github.com/NLPchina/ansj_seg)做分词，词性标注和命名体识别。用ICIBA(http://www.iciba.com/)作为英中翻译工具。上下文窗口大小为5，词／字向量维度为100，阈值$\delta$和$\lambda$设为0.5和0.4。
+### 利用英文维基(http://download.wikipedia.com/enwiki/) 训练CBOW的英文词向量，用中文维基(http://download.wikipedia.com/zhwiki/) 作为语料,把纯数字和非中文字符去掉，用ANSJ(https://github.com/NLPchina/ansj_seg) 做分词，词性标注和命名体识别。用ICIBA(http://www.iciba.com/) 作为英中翻译工具。上下文窗口大小为5，词／字向量维度为100，阈值$\delta$和$\lambda$设为0.5和0.4。
 
 ## ***词相似***
 ### wordsim-240和wordsim-296(Semeval-2012 task 4: evaluating chinese word similarity)作为数据集，Spearman’s rank correlation作为评价方法。
@@ -166,7 +166,7 @@ $$ (5)
 ### 通过PCA可视化词／字向量，然后取“道”和“光”的三个意思和每个意思最接近的词。
 ## ![scwe_pca](scwe_pca.png)
 ## ![scwe_nearest](scwe_nearest.png)
-### 选一些多义的字，用在线新华字典(http://xh.5156edu.com/)作为区分词中多义字的标准答案。每个词根据词典中的解释有一个序号，然后我们用KNN分类起来验证所有方法。结果如下
+### 选一些多义的字，用在线新华字典(http://xh.5156edu.com/) 作为区分词中多义字的标准答案。每个词根据词典中的解释有一个序号，然后我们用KNN分类起来验证所有方法。结果如下
 ## ![scwe_ambiguous](scwe_ambiguous.png)
 ### SCWE最好
 
@@ -189,4 +189,104 @@ $$ (5)
 #
 
 
+# ***Multi-Granularity Chinese Word Embedding***
+
+## ***Multi-Granularity Word Embedding(MGE)模型***
+## ![mge_model](mge_model.png)
+### MGE模型主要基于CBOW和CWE。
+### 符号介绍：$W$：中文词表，$C$:中文字表，$R$：中文偏旁部首表，对于每个$w_i\in W, c_i\in C, r_i\in R$，他们的向量表示分别为$\bold w_i, \bold c_i, \bold r_i$, 词$w_i$上下文窗口中的词集合为$W_i$，词$w_j$组成字的集合为$C_j$，词$w_i$的偏旁部首集合为$R_i$。在语料$D$上，MGE最大化如下log likelihood，
+$$
+L(D)=\sum_{w_i\in D}\log p(\bold w_i|\bold h_i)
+$$ (1)
+### 其中$\bold h_i$定义如下：
+$$
+\bold h_i = \frac{1}{2}[\frac{1}{|W_i|}\sum_{w_j\in W_i}(\bold w_j \oplus\frac{1}{|C_j|}\sum_{c_k\in C_j}\bold c_k)+\frac{1}{|R_i|}\sum_{r_k\in R_i}\bold r_k]
+$$ (2)
+### $\oplus$可以是加法或者连接，这里用加法。最后条件概率$p(\bold w_i|\bold h_i)$由softmax函数算出来
+$$
+p(\bold w_i|\bold h_i)=\frac{\exp(\bold h_i^T\bold w_i)}{\sum_{w_{i'}\in W}\exp(\bold h_i^T\bold w_{i'})}
+$$ (3)
+### 不是所有中文词都是组合的，比如音译词和实体词，这些词不用character和偏旁部首信息。和CWE一样，同样考虑字的位置信息，模型为MGE+P。
+
+## ***实验设置***
+### 用中文维基(http://download.wikipedia.com/zhwiki) 作为训练语料，用THULAC(http://thulac.thunlp.org/)工具来分词，词性标注和实体识别。纯数字，非中文字和词频小于5的被去除。然后爬取中文字典(http://zd.diyifanwen.com/zidian/bs/) 构建字-部首表，包含20847个字和269个偏旁部首，利用这个表来检测语料中每个字的部首。上下文窗口设为3，向量维度取{100, 200}，使用10个词的negative sampling，定初始学习率为0.025。
+
+## ***词相似***
+### 用CWE的WordSim-240和WordSim-296作为数据集，其中240中有一对是oov，296中有3对是oov，所以实际是WordSim-239,WordSim-293。同样使用Spearman correlation作为评价标准。相似度用cos距离衡量
+## ![mge_wordsim](mge_wordsim.png)
+### 1）在WordSim-239上，MGE+P比CWE+P好，并且好于CBOW，例如，MGE会因为“银行”和“钱”都有钱字部首而认为相似。2）在WordSim-293上，MGE+P比CWE+P好，但都差于CBOW，可能因为这个数据集有很多相似度很低的词，而用字或者部首不能很好的区分它们（这个观察和CWE原文中CWE好于CBOW不符合，可能是两个对于组合词的提取方法不同导致的）。
+## ![mge_ctx_size](mge_ctx_size.png)
+### 可以看出随着上下文窗口大小变化，MGE都是最好的。
+
+## ***词Analogy***
+### 使用CWE提供的数据集做测试。
+## ![mge_analogy](mge_analogy.png)
+### 1）MGE+P总提示最好的；2）对于首都和州的类别，MGE也是最好的，说明对于非组合词，MGE也起作用。3）家庭类，差于CBOW，有可能是把这些词错误的分成了字，比如“叔叔(uncle):阿姨(aunt) = 王子(prince) : ? ”，如果把“王子”分成两个字做处理，那么结果更可能得到“女王”而不是“公主”，因为女王可以分为“女”和“王”，“女“相对于”子“。
+
+## ***Case Study***
+## ![mge_case](mge_case.png)
+### 对所有模型取和“游泳”最接近的词，1）由于考虑了字，CWE和MGE都是最相近的词为“潜泳”，而CBOW最接近的为“田径”。2）MGE比CWE好，因为考虑了偏旁部首，由于三点水部首。
+### 考虑和病字头部首最接近的字和词，基本都是和疾病相关的，看出由于把词，字和偏旁部首在同一个向量空间表示，它们会具备一些相似性。
+#
+
+
+# ***Joint Embeddings of Chinese Words, Characters, and Fine-grained Subcharacter Components***
+
+## ***JWE模型***
+### 考虑更多部首外字以下的组件。比如“照”字不仅有火字底，还包含"日"“刀”“口”等其他组件。
+### $D$表示训练语料，$W=(w_1,...,w_N)$是词表，$C=(c_1,...c_M)$是字表，$S=(s_1,...,s_K)$是组件表，T是上下文窗口大小。JWE分别用词向量，字向量和组件向量的平均来预测当前词，并且把这三者的和作为目标函数
+$$
+L(w_i)=\sum_{k=1}^{3}\log P(w_i|h_{i_k})
+$$ (1)
+### $h_{i_1},h_{i_2},h_{i_3}$分别表示上下文词，字和组件。令$\bold v_{w_i}, \bold v_{c_i}, \bold v_{s_i}$表示词，字和组件的"input"向量表示，$\hat \bold v_{w_i}$表示词的"output"向量表示。条件概率定义如下
+$$
+p(w_i|h_{i_k})=\frac{\exp(\bold h_{i_k}^T \hat \bold v_{w_i})}{\sum_{j=1}^{N}\exp(\bold h_{i_k}^T \hat \bold v_{w_j})},\ k=1,2,3
+$$ (2)
+### $\bold h_{i_1}$表示上下文词"input"表示的平均
+$$
+\bold h_{i_1}=\frac{1}{2T}\sum_{-T\le j\le T,j\ne 0}\bold v_{w_{i+j}}
+$$ (3)
+### 同样的，$\bold h_{i_2},\bold h_{i_3}$分别表示上下文 字／组件"input"向量的平均。最后JWE最大化如下log likelihood
+$$
+L(D)=\sum_{w_i\in D}L(w_i)
+$$ (4)
+### 这个目标函数和MGE模型的不一样，MGE模型近似最大化如下函数$P(w_i|\bold h_{i_1}+\bold h_{i_2}+\bold h_{i_3})$，在反向传播时，$\bold h_{i_1},\bold h_{i_2},\bold h_{i_3}$的梯度在JWE中可以不一样，而在MGE中是一样的，所以词／字和组件的梯度在JWE中是不一样的，而在MGE中是一样的，这样能将三者分开，更好的训练。
+
+## ***评价方法***
+### 通过词相似和词analogy任务取评测。
+
+## ***实验设置***
+### 使用中文维基（http://download.wikipedia.com/zhwiki）作为训练语料，将纯数字和非中文字去除，词频小于5的删去。用THULAC(http://thulac.thunlp.org/)来分词，词性标注和实体词识别。
+### 通过爬HTTPCN(http://tool.httpcn.com/zi/)来得到中文字的偏旁部首和其他组件。总共得到20879个字，13253个组件和218个偏旁部首。
+### 比较CBOW,CWE和MGE，共用同一套参数。向量维度200，上下文窗口5，训练迭代100，初始学习率为0.025，subsampling参数为$10^{-4}$，10个词的negative sampling。
+
+## ***字相似***
+### 用CWE的wordsim-240和wordsim-296做比较，去除oov，最终使用wordsim-240和wordsim-295。
+## ![jwe_wordsim](jwe_wordsim.png)
+### JWE比其他都要好，并且比CWE和MGE好说明，把词／字／组件三者分开去预测比将它们加起来／连接／平均去预测要好。只加字信息(JWE-n)就能够得到很好的效果，可能这两个数据集中字的信息加上去就够了，比如“法律”和“律师”。
+
+## ***词analogy***
+### 同样使用CWE的数据集去评测。
+## ![jwe_analogy](jwe_analogy.png)
+### JWE最好，并且JWE加了组件(JWE+c)的最好，说明除了偏旁部首外，加上其他组件效果确实更好。
+
+## ***Case Study***
+## ![jwe_case](jwe_case.png)
+### 取“照”“河”两个字做例子，可以看出大多数相近的词意思也相近。
+### 取病字头做例子，可以看出相近的字／词都和疾病有关，并且不都是有病字头的比如“患”和“肿”，说明JWE并没有过度使用组件信息，而是同时使用了外部共现信息和内部结构信息。
+
+## ***代码链接***
+### https://github.com/HKUST-KnowComp/JWE
+#
+
+
 # ***How to Generate a Good Word Embedding?***
+
+## ***corpus domain is more important than corpus size***
+### 语料越大越好，用领域相关的语料最好，领域相关比语料大小更重要。使用领域相关的语料能提升任务的性能，而用不相关的语料会降低性能。对于某些任务，用纯的相关领域语料比用一个混合领域语料效果要好。同样领域语料，语料越大越好。
+
+## ***faster models provide sufficient performance in most cases, and more complex models can be used if the train- ing corpus is sufficiently large***
+### 向量维度一般越大越好，但是一般NLP任务，50就够了
+
+## ***early stopping***
+### 迭代次数太少学习不够，迭代次数太多会过拟合。early stopping是个很好的方法，但是传统是在验证集上loss出现peak时停止，这个和任务性能好坏不一致，最好通过开发集上任务性能来决定什么时候停止。对于大多数任务，迭代到出现peak停止能够得到不错的embedding，但是更好的embedding需要根据验证集在相关任务上的性能来判断何时停止。
