@@ -8,13 +8,13 @@
 
 ### **基于negative sampling的skip-gram模型**
 
-函数$s$表示词和上下文的得分，基于negative sampling的skip-gram模型的优化目标如下：
+函数$s$表示词和上下文的得分，基于negative sampling的skip-gram模型的优化目标如下：
 
 $$
 \sum_{t=1}^{T}[\sum_{c\in C_t}\log(1+\exp(-s(w_t, w_c)))+\sum_{n\in N_{t,c}}\log(1+\exp(s(w_t, n)))]
 $$
 
-$u_w, v_w$分别是词$w$的input和output向量，其中$s(w_t, w_c)=u_{w_t}^T v_{w_c}$
+$u_w, v_w$分别是词$w$的input和output向量，其中$s(w_t, w_c)=u_{w_t}^T v_{w_c}$
 
 **Subword模型**
 
@@ -42,7 +42,7 @@ $$
 
 ### **word similarity**
 
-sisg基本好于word2vec，然后sisg不会差于sisg-，说明subword信息还是有用的。和其他用到morphological表示的方法比较也是最好的。
+sisg基本好于word2vec，然后sisg不会差于sisg-，说明subword信息还是有用的。和其他用到morphological表示的方法比较也是最好的。
 
 ### **word analogy**
 
@@ -60,7 +60,7 @@ sisg在小数据下能够得到很好的词向量，在实际使用中，任务�
 
 n-grams长度在3-6是个不错的选择，但是具体任务具体语言还要进一步调参。
 
-n>=3的结果总是好于n>=2，可能由于n=2太短了，而且边界符<和>通常会占一位。
+n>=3的结果总是好于n>=2，可能由于n=2太短了，而且边界符<和>通常会占一位。
 
 ![n-grams_size](n-grams_size.png)
 
@@ -70,9 +70,9 @@ n>=3的结果总是好于n>=2，可能由于n=2太短了，而且边界符<和>
 
 ## **定量分析**
 
-最重要的n-gram很可能就是morphemes
+最重要的n-gram很可能就是morphemes
 
-对于oov词的相似性，subword之间的匹配很好的代表了词之间的匹配
+对于oov词的相似性，subword之间的匹配很好的代表了词之间的匹配
 
 ## **感想**
 
