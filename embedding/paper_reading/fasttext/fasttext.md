@@ -34,7 +34,7 @@ $$
 
 ## **评价方法**
 
-## 和word2vec的skip-gram和cbow比较，主要比较word similarity和word analogies
+和word2vec的skip-gram和cbow比较，主要比较word similarity和word analogies
 
 ## **结果**
 
