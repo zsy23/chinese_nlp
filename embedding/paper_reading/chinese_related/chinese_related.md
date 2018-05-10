@@ -1,6 +1,6 @@
 # ***中文Embedding近年论文***
 
-# ***Joint Learning of Character and Word Embeddi***
+# ***Joint Learning of Character and Word Embedding***
 
 ## ***CWE模型***
 ### CWE模型主要基于CBOW模型。
@@ -96,9 +96,9 @@ h_i = concatenation(c_{i-T},e_{i-T},...,c_{i+T},e_{i+T})
 $$
 
 ## ***评价方法***
-### 通过词相似和文本分类作为评测任务。用哈工大信息检索研究中心同义词词林扩展版(http://ir.hit.edu.cn/demo/ltp/Sharing_Plan.htm) 作为词相似数据集，腾讯新闻(http://www.datatang.com/data/44341 好像失效了)标题作为文本分类数据集。
-### 偏旁部首通过在线新华字典(http://xh.5156edu.com) 提取，其余组件通过在新华字典中匹配“从（from）+ X”的模式提取，表示该字含有X这个组件。通过在Hong Kong Computer Chinese Basic Component Reference (https://www.ogcio.gov.hk/tc/our_work/business/tech_promotion/ccli/cliac/glyphs_guidelines.html) 中匹配“X is only seen”模式来扩充component list。每个字最多取两个组件来构建字向量。
-### 使用中文维基(http://download.wikipedia.com/zhwiki/) 作为训练语料。预处理时，去处纯数字和非中文字符，并且忽视出现次数少于10的词。设置上下文窗口为2，取5个negative sampling，向量维度取50。
+### 通过词相似和文本分类作为评测任务。用[哈工大信息检索研究中心同义词词林扩展版](http://ir.hit.edu.cn/demo/ltp/Sharing_Plan.htm)作为词相似数据集，[腾讯新闻](http://www.datatang.com/data/44341)(好像失效了)标题作为文本分类数据集。
+### 偏旁部首通过[在线新华字典](http://xh.5156edu.com) 提取，其余组件通过在新华字典中匹配“从（from）+ X”的模式提取，表示该字含有X这个组件。通过在[Hong Kong Computer Chinese Basic Component Reference](https://www.ogcio.gov.hk/tc/our_work/business/tech_promotion/ccli/cliac/glyphs_guidelines.html) 中匹配“X is only seen”模式来扩充component list。每个字最多取两个组件来构建字向量。
+### 使用[中文维基](http://download.wikipedia.com/zhwiki/) 作为训练语料。预处理时，去处纯数字和非中文字符，并且忽视出现次数少于10的词。设置上下文窗口为2，取5个negative sampling，向量维度取50。
 ## ![cece_result](cece_result.png)
 ### 词相似用Spearman’s rank correlation作为评价标准。文本分类用标题中字向量的平均作为分类器的输入。和原文描述一致，CBOW比SkipGram差。总的来说char-*模型更好。
 #
@@ -149,7 +149,7 @@ $$
 $$ (5)
 
 ## ***实验设置***
-### 利用英文维基(http://download.wikipedia.com/enwiki/) 训练CBOW的英文词向量，用中文维基(http://download.wikipedia.com/zhwiki/) 作为语料,把纯数字和非中文字符去掉，用ANSJ(https://github.com/NLPchina/ansj_seg) 做分词，词性标注和命名体识别。用ICIBA(http://www.iciba.com/) 作为英中翻译工具。上下文窗口大小为5，词／字向量维度为100，阈值$\delta$和$\lambda$设为0.5和0.4。
+### 利用[英文维基](http://download.wikipedia.com/enwiki/) 训练CBOW的英文词向量，用[中文维基](http://download.wikipedia.com/zhwiki/) 作为语料,把纯数字和非中文字符去掉，用[ANSJ](https://github.com/NLPchina/ansj_seg) 做分词，词性标注和命名体识别。用[ICIBA](http://www.iciba.com/) 作为英中翻译工具。上下文窗口大小为5，词／字向量维度为100，阈值$\delta$和$\lambda$设为0.5和0.4。
 
 ## ***词相似***
 ### wordsim-240和wordsim-296(Semeval-2012 task 4: evaluating chinese word similarity)作为数据集，Spearman’s rank correlation作为评价方法。
@@ -157,7 +157,7 @@ $$ (5)
 ### SCWE和SCWE+M更好，而且在wordsim-296上SCWE和baseline差不多，但是SCWE+M更好，表示multiple-prototype是有用的。
 
 ## ***文本分类***
-### 用复旦语料（http://www.datatang.com/data/44139）作为数据集。为了防止不平衡，选取十个类别，分为两大组。一组为Fudan-large，每个类别下文章数多于1000，另一组为Fudan-small，每个类别下文章数小于100。每个类别80%用作训练，剩下的用来测试。
+### 用[复旦语料]（http://www.datatang.com/data/44139）作为数据集。为了防止不平衡，选取十个类别，分为两大组。一组为Fudan-large，每个类别下文章数多于1000，另一组为Fudan-small，每个类别下文章数小于100。每个类别80%用作训练，剩下的用来测试。
 ###同样把纯数字和中文字符去掉，然后用ANSJ做处理。每篇文章的出版信息被删掉。通过对文章中词的词向量求平均来表示这篇文章，然后用LIBLINEAR训练分类器。
 ## ![scwe_text_classify](scwe_text_classify.png)
 ### SCWE更好。
@@ -166,7 +166,7 @@ $$ (5)
 ### 通过PCA可视化词／字向量，然后取“道”和“光”的三个意思和每个意思最接近的词。
 ## ![scwe_pca](scwe_pca.png)
 ## ![scwe_nearest](scwe_nearest.png)
-### 选一些多义的字，用在线新华字典(http://xh.5156edu.com/) 作为区分词中多义字的标准答案。每个词根据词典中的解释有一个序号，然后我们用KNN分类起来验证所有方法。结果如下
+### 选一些多义的字，用[在线新华字典](http://xh.5156edu.com/) 作为区分词中多义字的标准答案。每个词根据词典中的解释有一个序号，然后我们用KNN分类起来验证所有方法。结果如下
 ## ![scwe_ambiguous](scwe_ambiguous.png)
 ### SCWE最好
 
@@ -209,7 +209,7 @@ $$ (3)
 ### 不是所有中文词都是组合的，比如音译词和实体词，这些词不用character和偏旁部首信息。和CWE一样，同样考虑字的位置信息，模型为MGE+P。
 
 ## ***实验设置***
-### 用中文维基(http://download.wikipedia.com/zhwiki) 作为训练语料，用THULAC(http://thulac.thunlp.org/)工具来分词，词性标注和实体识别。纯数字，非中文字和词频小于5的被去除。然后爬取中文字典(http://zd.diyifanwen.com/zidian/bs/) 构建字-部首表，包含20847个字和269个偏旁部首，利用这个表来检测语料中每个字的部首。上下文窗口设为3，向量维度取{100, 200}，使用10个词的negative sampling，定初始学习率为0.025。
+### 用[中文维基](http://download.wikipedia.com/zhwiki) 作为训练语料，用[THULAC](http://thulac.thunlp.org/)工具来分词，词性标注和实体识别。纯数字，非中文字和词频小于5的被去除。然后爬取[中文字典](http://zd.diyifanwen.com/zidian/bs/) 构建字-部首表，包含20847个字和269个偏旁部首，利用这个表来检测语料中每个字的部首。上下文窗口设为3，向量维度取{100, 200}，使用10个词的negative sampling，定初始学习率为0.025。
 
 ## ***词相似***
 ### 用CWE的WordSim-240和WordSim-296作为数据集，其中240中有一对是oov，296中有3对是oov，所以实际是WordSim-239,WordSim-293。同样使用Spearman correlation作为评价标准。相似度用cos距离衡量
@@ -256,8 +256,8 @@ $$ (4)
 ### 通过词相似和词analogy任务取评测。
 
 ## ***实验设置***
-### 使用中文维基（http://download.wikipedia.com/zhwiki）作为训练语料，将纯数字和非中文字去除，词频小于5的删去。用THULAC(http://thulac.thunlp.org/)来分词，词性标注和实体词识别。
-### 通过爬HTTPCN(http://tool.httpcn.com/zi/)来得到中文字的偏旁部首和其他组件。总共得到20879个字，13253个组件和218个偏旁部首。
+### 使用[中文维基]（http://download.wikipedia.com/zhwiki）作为训练语料，将纯数字和非中文字去除，词频小于5的删去。用[THULAC](http://thulac.thunlp.org/)来分词，词性标注和实体词识别。
+### 通过爬[HTTPCN](http://tool.httpcn.com/zi/)来得到中文字的偏旁部首和其他组件。总共得到20879个字，13253个组件和218个偏旁部首。
 ### 比较CBOW,CWE和MGE，共用同一套参数。向量维度200，上下文窗口5，训练迭代100，初始学习率为0.025，subsampling参数为$10^{-4}$，10个词的negative sampling。
 
 ## ***字相似***
