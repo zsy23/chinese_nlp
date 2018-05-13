@@ -440,9 +440,9 @@ https://github.com/HKUST-KnowComp/JWE
 
 ![cw2vec_model](cw2vec_model.png)
 
-把词先分成$n$-grams，每一个$n$-grams笔画都会有表示向量，上下文字表示为相同维度的词向量，最后再优化一个目标函数得到训练语料上的词向量和$n$-grams笔画笔画向量。
+把词先分成$n$-grams，每一个$n$-grams笔画都会有表示向量，上下文字表示为相同维度的词向量，最后再优化一个目标函数得到训练语料上的词向量和$n$-grams笔画笔画向量。
 
-### **$n$-grams笔画**
+### **$n$-grams笔画**
 
 把笔画分为五类，每一个对应一个整数标签（1-5）如下图：
 
@@ -450,7 +450,7 @@ https://github.com/HKUST-KnowComp/JWE
 
 ![cw2vec_stroke_n_grams](cw2vec_stroke_n_grams.png)
 
-如上图，通过以下步骤把词分为$n$-grams笔画：（1）把词分成字，（2）得到每个字的笔画序列，然后再把他们连接起来，（3）利用笔画ID来标识这些序列，（4）通过一个滑动窗口来生成$n$-grams笔画。$n$-grams笔画中的$n$取3-12。
+如上图，通过以下步骤把词分为$n$-grams笔画：（1）把词分成字，（2）得到每个字的笔画序列，然后再把他们连接起来，（3）利用笔画ID来标识这些序列，（4）通过一个滑动窗口来生成$n$-grams笔画。$n$-grams笔画中的$n$取3-12。
 
 ### **目标函数**
 
@@ -464,7 +464,7 @@ $$
 sim(w,c)=\sum_{q\in S(w)}\vec q \cdot \vec c
 $$
 
-其中，$S(w)$表示词$w$的$n$-grams笔画集合，$q$是其中的元素，$\vec q$是笔画向量，$\vec c$是词向量。
+其中，$S(w)$表示词$w$的$n$-grams笔画集合，$q$是其中的元素，$\vec q$是笔画向量，$\vec c$是词向量。
 
 目标函数的其他地方和word2vec中一样。
 
@@ -496,7 +496,7 @@ baseline选择word2vec,Glove,CWE,GWE(《Learning chinese word rep- resentations 
 
 ### **语料大小的影响**
 
-取前20%语料去训练，词相似结果如下
+取前20%语料去训练，词相似结果如下
 
 ![cw2vec_size](cw2vec_size.png)
 
@@ -504,4 +504,4 @@ baseline选择word2vec,Glove,CWE,GWE(《Learning chinese word rep- resentations 
 
 ![cw2vec_quali](cw2vec_quali.png)
 
-结果如上，cw2vec更加好点。之前的方法CWE,GWE等都会受频繁的字的影响，cw2vec通过使用$n$-grams笔画缓解了这一现象。
+结果如上，cw2vec更加好点。之前的方法CWE,GWE等都会受频繁的字的影响，cw2vec通过使用$n$-grams笔画缓解了这一现象。
