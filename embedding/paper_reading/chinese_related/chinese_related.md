@@ -431,3 +431,77 @@ https://github.com/HKUST-KnowComp/JWE
 ## **early stopping**
 
 迭代次数太少学习不够，迭代次数太多会过拟合。early stopping是个很好的方法，但是传统是在验证集上loss出现peak时停止，这个和任务性能好坏不一致，最好通过开发集上任务性能来决定什么时候停止。对于大多数任务，迭代到出现peak停止能够得到不错的embedding，但是更好的embedding需要根据验证集在相关任务上的性能来判断何时停止。
+
+#
+
+# **[cw2vec: Learning Chinese Word Embeddings with Stroke n-gram Information](http://www.statnlp.org/wp-content/uploads/papers/2018/cw2vec/cw2vec.pdf)**
+
+## **cw2vec模型**
+
+![cw2vec_model](cw2vec_model.png)
+
+把词先分成$n$-grams，每一个$n$-grams笔画都会有表示向量，上下文字表示为相同维度的词向量，最后再优化一个目标函数得到训练语料上的词向量和$n$-grams笔画笔画向量。
+
+### **$n$-grams笔画**
+
+把笔画分为五类，每一个对应一个整数标签（1-5）如下图：
+
+![cw2vec_stroke](cw2vec_stroke.png)
+
+![cw2vec_stroke_n_grams](cw2vec_stroke_n_grams.png)
+
+如上图，通过以下步骤把词分为$n$-grams笔画：（1）把词分成字，（2）得到每个字的笔画序列，然后再把他们连接起来，（3）利用笔画ID来标识这些序列，（4）通过一个滑动窗口来生成$n$-grams笔画。$n$-grams笔画中的$n$取3-12。
+
+### **目标函数**
+
+采用Skip-Gram加上negative-sampling，得到以下目标函数
+
+![cw2vec_obj_func](cw2vec_obj_func.png)
+
+其中
+
+$$
+sim(w,c)=\sum_{q\in S(w)}\vec q \cdot \vec c
+$$
+
+其中，$S(w)$表示词$w$的$n$-grams笔画集合，$q$是其中的元素，$\vec q$是笔画向量，$\vec c$是词向量。
+
+目标函数的其他地方和word2vec中一样。
+
+优化目标函数后，把上下文词向量作为最终词向量输出。
+
+## **实验设置**
+
+### **数据**
+
+用[中文维基](https://dumps.wikimedia.org/zhwiki/20161120/)作为训练语料，利用[gensim中的脚本](https://radimrehurek.com/gensim/corpora/wikicorpus.html)来处理维基语料，用[opencc](https://github.com/BYVoid/OpenCC)来将语料转成简体中文，unicode落在$0x4E00$到$0x9FA5$间的是中文字保留下来，用[ansj](https://github.com/NLPchina/ansj_seg)来做分词。利用[Juhe Data](https://www.juhe.cn/docs/api/id/156)提供的API得到中文字的笔画信息。
+
+### **Benchmarks和评价方法**
+
+词相似和词analogy用CWE提供的，文本分类用[复旦语料](http://www.datatang.com/data/44139/)作为评价数据。实现《End-to-end sequence labeling via bi-directional lstm-cnns-crf》中的模型，利用[标注好的命名实体语料](http://bosonnlp.com/resources/BosonNLP_NER_6C.zip)来测试命名实体识别的效果，其中只把词向量当作特征输入输入层。取每个词的最近邻词做qualitative分析。
+
+baseline选择word2vec,Glove,CWE,GWE(《Learning chinese word rep- resentations from glyphs of characters》)和JWE，用同样的向量维度，去除词频小于10的，上下文窗口大小和negative sampling都设为5。
+
+## **实验结果**
+
+### **四个任务**
+
+![cw2vec_result](cw2vec_result.png)
+
+可以看到词相似，词analogy和文本分类，命名实体识别都是cw2vec最好。
+
+### **向量维度的影响**
+
+![cw2vec_dim](cw2vec_dim.png)
+
+### **语料大小的影响**
+
+取前20%语料去训练，词相似结果如下
+
+![cw2vec_size](cw2vec_size.png)
+
+### **Qualitative Results**
+
+![cw2vec_quali](cw2vec_quali.png)
+
+结果如上，cw2vec更加好点。之前的方法CWE,GWE等都会受频繁的字的影响，cw2vec通过使用$n$-grams笔画缓解了这一现象。
