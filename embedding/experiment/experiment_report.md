@@ -51,7 +51,7 @@ Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 **文本分类**
 
-Accuracy = 91.95%
+Accuracy = 91.95%
 
 ```
 ./word2vec -train ../corpus/rm_digit_and_non_chinese/corpus.complete -output ../model/word2vec/wiki_sougou_news_dureader/word2vec_skip_gram_100.vec -size 100 -window 5 -sample 1
