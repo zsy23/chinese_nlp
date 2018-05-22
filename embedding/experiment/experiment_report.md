@@ -434,7 +434,142 @@ wiki+sougou_news+dureader数据集不同向量维度的分析
 
 # **GloVe**
 
+## **wiki+sougou_news+dureader**
+
+```
+#!/bin/bash
+set -e
+
+CORPUS=../corpus/rm_digit_and_non_chinese/corpus.complete
+SAVE_FILE=../model/glove/wiki_sougou_news_dureader/glove_300
+
+VOCAB_FILE=vocab.txt
+COOCCURRENCE_FILE=cooccurrence.bin
+COOCCURRENCE_SHUF_FILE=cooccurrence.shuf.bin
+BUILDDIR=build
+VERBOSE=2
+MEMORY=15.5
+VOCAB_MIN_COUNT=5
+VECTOR_SIZE=300
+WINDOW_SIZE=5
+BINARY=0
+NUM_THREADS=8
+
+echo "$ $BUILDDIR/vocab_count -min-count $VOCAB_MIN_COUNT -verbose $VERBOSE < $CORPUS > $VOCAB_FILE"
+$BUILDDIR/vocab_count -min-count $VOCAB_MIN_COUNT -verbose $VERBOSE < $CORPUS > $VOCAB_FILE
+echo "$ $BUILDDIR/cooccur -memory $MEMORY -vocab-file $VOCAB_FILE -verbose $VERBOSE -window-size $WINDOW_SIZE < $CORPUS > $COOCCURRENCE_FILE"
+$BUILDDIR/cooccur -memory $MEMORY -vocab-file $VOCAB_FILE -verbose $VERBOSE -window-size $WINDOW_SIZE < $CORPUS > $COOCCURRENCE_FILE
+echo "$ $BUILDDIR/shuffle -memory $MEMORY -verbose $VERBOSE < $COOCCURRENCE_FILE > $COOCCURRENCE_SHUF_FILE"
+$BUILDDIR/shuffle -memory $MEMORY -verbose $VERBOSE < $COOCCURRENCE_FILE > $COOCCURRENCE_SHUF_FILE
+echo "$ $BUILDDIR/glove -write-header 1 -model 1 -save-file $SAVE_FILE -threads $NUM_THREADS -input-file $COOCCURRENCE_SHUF_FILE -vector-size $VECTOR_SIZE -binary $BINARY -vocab-file $VOCAB_FILE -verbose $VE    RBOSE"
+$BUILDDIR/glove -write-header 1 -model 1 -save-file $SAVE_FILE -threads $NUM_THREADS -input-file $COOCCURRENCE_SHUF_FILE -vector-size $VECTOR_SIZE -binary $BINARY -vocab-file $VOCAB_FILE -verbose $VERBOSE
+```
+
+**Word Similarity**
+
+| Dataset | Found | Not Found | Score(Spearman Correlation) |
+| :-: | :-: | :-: | :-: |
+| 240.txt | 232 | 8 | 0.5468020805354796 |
+| 297.txt | 287 | 10 | 0.5147933094143985 |
+
+**Word Analogy**
+
+Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
+
+| Category | Total count | Accuracy | Mean rank |
+| :-: | :-: | :-: | :-: |
+| City | 175 |  |  |
+| Family | 272 |  |  |
+| Capital | 506 |  |  |
+| Total | 953 |  |  |
+
+**文本分类**
+
+Accuracy = 93.625%
+
 # **fastText**
+
+## **wiki+sougou_news+dureader**
+
+### **Skip-Gram**
+
+```
+./fasttext skipgram -input ../corpus/rm_digit_and_non_chinese/corpus.complete -output ../model/fasttext/wiki_sougou_news_dureader/fasttext_skip_gram_300 -minCount 5 -minn 1 -maxn 6 -t 0.0001 -lr 0.025 -dim 300 -ws 5 -neg 10 -loss ns -thread 3
+```
+
+**Word Similarity**
+
+Preprocess in order to compute all word vector
+
+```
+cut -f 1,2 ../CWE/data/240.txt | awk '{print tolower($0)}' | tr '\t' '\n' > queries.txt
+cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki_sougou_news_dureader/fasttext_skip_gram_300.bin > vectors.txt
+
+cut -f 1,2 ../CWE/data/297.txt | awk '{print tolower($0)}' | tr '\t' '\n' > queries.txt
+cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki_sougou_news_dureader/fasttext_skip_gram_300.bin > vectors.txt
+```
+
+| Dataset | Found | Not Found | Score(Spearman Correlation) |
+| :-: | :-: | :-: | :-: |
+| 240.txt | 240 | 0 | 0.5775802337578299 |
+| 297.txt | 296 | 1 | 0.6185255346335059 |
+
+**Word Analogy**
+
+Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
+
+| Category | Total count | Accuracy | Mean rank |
+| :-: | :-: | :-: | :-: |
+| City | 175 |  |  |
+| Family | 272 |  |  |
+| Capital | 506 |  |  |
+| Total | 953 |  |  |
+
+**文本分类**
+
+Do not preprocess like above, just omit oov
+
+Accuracy = 94.15%
+
+### **CBOW**
+
+```
+./fasttext cbow -input ../corpus/rm_digit_and_non_chinese/corpus.complete -output ../model/fasttext/wiki_sougou_news_dureader/fasttext_cbow_300 -minCount 5 -minn 1 -maxn 6 -t 0.0001 -lr 0.05 -dim 300 -ws 5 -neg 10 -loss ns -thread 3
+```
+
+**Word Similarity**
+
+Preprocess in order to compute all word vector
+
+```
+cut -f 1,2 ../CWE/data/240.txt | awk '{print tolower($0)}' | tr '\t' '\n' > queries.txt
+cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki_sougou_news_dureader/fasttext_cbow_300.bin > vectors.txt
+
+cut -f 1,2 ../CWE/data/297.txt | awk '{print tolower($0)}' | tr '\t' '\n' > queries.txt
+cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki_sougou_news_dureader/fasttext_cbow_300.bin > vectors.txt
+```
+
+| Dataset | Found | Not Found | Score(Spearman Correlation) |
+| :-: | :-: | :-: | :-: |
+| 240.txt | 240 | 0 | 0.5900611487697095 |
+| 297.txt | 296 | 1 | 0.6343481072884735 |
+
+**Word Analogy**
+
+Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
+
+| Category | Total count | Accuracy | Mean rank |
+| :-: | :-: | :-: | :-: |
+| City | 175 |  |  |
+| Family | 272 |  |  |
+| Capital | 506 |  |  |
+| Total | 953 |  |  |
+
+**文本分类**
+
+Do not preprocess like above, just omit oov
+
+Accuracy = 93.8%
 
 # **CWE**
 
