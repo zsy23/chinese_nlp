@@ -127,7 +127,7 @@ Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9771428571428571 | 1.2457142857142858 |
 | Family | 272 | 0.7573529411764706 | 8.242647058823529 |
-| Capital | 506 | 0.9071146245059288 |  1.6719367588932805 |
+| Capital | 506 | 0.9071146245059288 | 1.6719367588932805 |
 | Total | 953 | 0.8772298006295908 | 3.4690451206715633 |
 
 **文本分类**
@@ -181,7 +181,7 @@ Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9428571428571428 | 1.0685714285714285 |
 | Family | 272 | 0.7389705882352942 | 7.430147058823529 |
-| Capital | 506 | 0.7608695652173914 |  7.191699604743083 |
+| Capital | 506 | 0.7608695652173914 | 7.191699604743083 |
 | Total | 953 | 0.7880377754459601 | 6.135362014690451 |
 
 **文本分类**
@@ -420,7 +420,11 @@ wiki+sougou_news+dureader数据集不同向量维度的分析
 
 ![word_similarity](word_similarity.png)
 
-![word_analogy](word_analogy.png)
+![word_analogy_em](word_analogy_em.png)
+
+remove dimension 50 because its mean rank is too large
+
+![word_analogy_mr](word_analogy_mr.png)
 
 ![text_classification](text_classification.png)
 
@@ -428,7 +432,9 @@ wiki+sougou_news+dureader数据集不同向量维度的分析
 
 ![dataset_similarity](dataset_similarity.png)
 
-![dataset_analogy](dataset_analogy.png)
+![dataset_analogy_em](dataset_analogy_em.png)
+
+![dataset_analogy_mr](dataset_analogy_mr.png)
 
 ![dataset_classification](dataset_classification.png)
 
@@ -478,10 +484,10 @@ Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
-| City | 175 |  |  |
-| Family | 272 |  |  |
-| Capital | 506 |  |  |
-| Total | 953 |  |  |
+| City | 175 | 0.9428571428571428 | 1.1028571428571428 |
+| Family | 272 | 0.6875 | 23.790441176470587 |
+| Capital | 506 | 0.6996047430830039 | 2.877470355731225 |
+| Total | 953 | 0.7408184679958028 | 8.520461699895069 |
 
 **文本分类**
 
@@ -516,18 +522,20 @@ cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki
 
 **Word Analogy**
 
+Preprocess to get oov embedding
+
 Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
-| City | 175 |  |  |
-| Family | 272 |  |  |
-| Capital | 506 |  |  |
-| Total | 953 |  |  |
+| City | 175 | 0.9771428571428571 | 1.062857142857143 |
+| Family | 272 | 0.4411764705882353 | 14.022058823529411 |
+| Capital | 506 | 0.5434782608695652 | 36.24308300395257 |
+| Total | 953 | 0.5939139559286464 | 23.440713536201468 |
 
 **文本分类**
 
-Do not preprocess like above, just omit oov
+Preprocess in order to compute all word vector
 
 Accuracy = 94.15%
 
@@ -556,6 +564,8 @@ cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki
 
 **Word Analogy**
 
+Preprocess to get oov embedding
+
 Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
@@ -567,12 +577,14 @@ Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 **文本分类**
 
-Do not preprocess like above, just omit oov
+Preprocess in order to compute all word vector
 
-Accuracy = 93.8%
+Accuracy = 93.85%
 
 # **CWE**
 
 # **SCWE**
 
 # **JWE**
+
+# **Some algorithm can use pretrained embedding to improve?**
