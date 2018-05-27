@@ -16,7 +16,7 @@
 
 用CWE提供的240.txt，297.txt做word similarity，包含oov词的case直接忽略，不是把score赋为0。
 
-用analogy.txt做word analog。
+用analogy.txt做word analog，指标中的Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 用THUCNews做文本分类，选取财经，教育，科技，社会，时政，体育，游戏，娱乐八大类，每类选5000篇文章用来训练，500篇用来测试，去除文章中数字和非中文字符，并且用ltp做分词，用LIBLINEAR来训练分类器，直接用train的默认参数。
 
@@ -39,8 +39,6 @@
 | 297.txt | 287 | 10 | 0.5345762511845042 |
 
 **Word Analogy**
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
@@ -67,8 +65,6 @@ e-4 -hs 0 -negative 10 -iter 5 -min-count 5 -alpha 0.025 -cbow 0
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9542857142857143 | 1.7885714285714285 |
@@ -94,8 +90,6 @@ e-4 -hs 0 -negative 10 -iter 5 -min-count 5 -alpha 0.025 -cbow 0
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9828571428571429 | 1.1657142857142857 |
@@ -120,8 +114,6 @@ e-4 -hs 0 -negative 10 -iter 5 -min-count 5 -alpha 0.025 -cbow 0
 | 297.txt | 287 | 10 | 0.5801494826378228 |
 
 **Word Analogy**
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
@@ -149,8 +141,6 @@ Accuracy = 94.3%
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.7942857142857143 | 2.0171428571428573 |
@@ -174,8 +164,6 @@ Accuracy = 91.75%
 | 297.txt | 287 | 10 | 0.5924817049087362 |
 
 **Word Analogy**
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
@@ -201,8 +189,6 @@ Accuracy = 93.15%
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9714285714285714 | 1.0914285714285714 |
@@ -226,8 +212,6 @@ Accuracy = 93.825%
 | 297.txt | 287 | 10 | 0.6023986267760679 |
 
 **Word Analogy**
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
@@ -257,8 +241,6 @@ Accuracy = 93.925%
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9314285714285714 | 1.0857142857142856 |
@@ -284,8 +266,6 @@ Accuracy = 93.375%
 | 297.txt | 287 | 10 | 0.580055572161157 |
 
 **Word Analogy**
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
@@ -315,8 +295,6 @@ Accuracy = 93.05%
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9657142857142857 | 1.36 |
@@ -342,8 +320,6 @@ Accuracy = 93.9%
 | 297.txt | 282 | 15 | 0.6049431883193874 |
 
 **Word Analogy**
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
@@ -373,8 +349,6 @@ Accuracy = 93.65%
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9657142857142857 | 1.0457142857142858 |
@@ -401,8 +375,6 @@ Accuracy = 93.525%
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.8571428571428571 | 6.474285714285714 |
@@ -416,27 +388,27 @@ Accuracy = 93.55%
 
 ## **Analysis**
 
-wiki+sougou_news+dureader数据集不同向量维度的分析
+### **wiki+sougou_news+dureader数据集不同向量维度的分析**
 
-![word_similarity](word_similarity.png)
+![word2vec_similarity](word2vec_similarity.png)
 
-![word_analogy_em](word_analogy_em.png)
+![word2vec_analogy_em](word2vec_analogy_em.png)
 
 remove dimension 50 because its mean rank is too large
 
-![word_analogy_mr](word_analogy_mr.png)
+![word2vec_analogy_mr](word2vec_analogy_mr.png)
 
-![text_classification](text_classification.png)
+![word2vec_classification](word2vec_classification.png)
 
-不同数据集的分析（向量维度都是300）
+### **不同数据集的分析（向量维度都是300）**
 
-![dataset_similarity](dataset_similarity.png)
+![word2vec_dataset_similarity](word2vec_dataset_similarity.png)
 
-![dataset_analogy_em](dataset_analogy_em.png)
+![word2vec_dataset_analogy_em](word2vec_dataset_analogy_em.png)
 
-![dataset_analogy_mr](dataset_analogy_mr.png)
+![word2vec_dataset_analogy_mr](word2vec_dataset_analogy_mr.png)
 
-![dataset_classification](dataset_classification.png)
+![word2vec_dataset_classification](word2vec_dataset_classification.png)
 
 # **GloVe**
 
@@ -480,8 +452,6 @@ $BUILDDIR/glove -write-header 1 -model 1 -save-file $SAVE_FILE -threads $NUM_THR
 
 **Word Analogy**
 
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
 | City | 175 | 0.9428571428571428 | 1.1028571428571428 |
@@ -505,7 +475,7 @@ Accuracy = 93.625%
 
 **Word Similarity**
 
-Preprocess in order to compute all word vector
+Preprocess in order to compute all word vector. (below fasttext experiment also does this)
 
 ```
 cut -f 1,2 ../CWE/data/240.txt | awk '{print tolower($0)}' | tr '\t' '\n' > queries.txt
@@ -522,9 +492,7 @@ cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki
 
 **Word Analogy**
 
-Preprocess to get oov embedding
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
+Preprocess to get oov embedding. (below fasttext experiment also does this)
 
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
@@ -535,7 +503,7 @@ Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
 
 **文本分类**
 
-Preprocess in order to compute all word vector
+Preprocess in order to compute all word vector. (below fasttext experiment also does this)
 
 Accuracy = 94.15%
 
@@ -547,16 +515,6 @@ Accuracy = 94.15%
 
 **Word Similarity**
 
-Preprocess in order to compute all word vector
-
-```
-cut -f 1,2 ../CWE/data/240.txt | awk '{print tolower($0)}' | tr '\t' '\n' > queries.txt
-cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki_sougou_news_dureader/fasttext_cbow_300.bin > vectors.txt
-
-cut -f 1,2 ../CWE/data/297.txt | awk '{print tolower($0)}' | tr '\t' '\n' > queries.txt
-cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki_sougou_news_dureader/fasttext_cbow_300.bin > vectors.txt
-```
-
 | Dataset | Found | Not Found | Score(Spearman Correlation) |
 | :-: | :-: | :-: | :-: |
 | 240.txt | 240 | 0 | 0.5900611487697095 |
@@ -564,27 +522,117 @@ cat queries.txt | ../fastText/fasttext print-word-vectors ../model/fasttext/wiki
 
 **Word Analogy**
 
-Preprocess to get oov embedding
-
-Mean rank: 指ground truth在最近邻中排第几（理想情况应该是1）
-
 | Category | Total count | Accuracy | Mean rank |
 | :-: | :-: | :-: | :-: |
-| City | 175 |  |  |
-| Family | 272 |  |  |
-| Capital | 506 |  |  |
-| Total | 953 |  |  |
+| City | 175 | 0.7714285714285715 | 1.4628571428571429 |
+| Family | 272 | 0.35661764705882354 | 33.279411764705884 |
+| Capital | 506 | 0.3241106719367589 | 1531.895256916996 |
+| Total | 953 | 0.4155299055613851 | 823.1343126967471 |
 
 **文本分类**
-
-Preprocess in order to compute all word vector
 
 Accuracy = 93.85%
 
 # **CWE**
 
-# **SCWE**
+TODO: use character embedding to calculate oov. (Because each character may have multiply embedding, need to make choice according to the context)
+
+## **wiki+sougou_news+dureader**
+
+### **Skip-Gram**
+
+```
+./cwe -train ../../corpus/rm_digit_and_non_chinese/corpus.complete -non-comp ../data/non_composition_entity.txt -output-word ../../model/cwe/wiki_sougou_news_dureader/cwe_skip_gram_300.vec -output-char ../../model/cwe/wiki_sougou_news_dureader/cwe_skip_gram_300.char.vec -size 300 -window 5 -sample 1e-4 -cbow 0 -hs 0 -negative 10 -threads 3 -min-count 5 -alpha 0.025 -cwe-type 3
+```
+
+**Word Similarity**
+
+| Dataset | Found | Not Found | Score(Spearman Correlation) |
+| :-: | :-: | :-: | :-: |
+| 240.txt | 232 | 8 | 0.586608619632337 |
+| 297.txt | 287 | 10 | 0.6213546078656862 |
+
+**Word Analogy**
+
+| Category | Total count | Accuracy | Mean rank |
+| :-: | :-: | :-: | :-: |
+| City | 175 | 0.9942857142857143 | 1.0114285714285713 |
+| Family | 272 | 0.5735294117647058 | 2261.4963235294117 |
+| Capital | 506 | 0.8379446640316206 | 1.6660079051383399 |
+| Total | 953 | 0.7911857292759706 | 646.5341028331585 |
+
+**文本分类**
+
+Accuracy = 93.75%
+
+### **CBOW**
+
+```
+./cwe -train ../../corpus/rm_digit_and_non_chinese/corpus.complete -non-comp ../data/non_composition_entity.txt -output-word ../../model/cwe/wiki_sougou
+_news_dureader/cwe_cbow_300.vec -output-char ../../model/cwe/wiki_sougou_news_dureader/cwe_cbow_300.char.vec -size 300 -window 5 -sample 1e-4 -cbow 1 -hs 0 -negative 10 -threads 3 -min-count 5 -alpha 0.05 -cwe-t
+ype 3
+```
+
+**Word Similarity**
+
+| Dataset | Found | Not Found | Score(Spearman Correlation) |
+| :-: | :-: | :-: | :-: |
+| 240.txt | 232 | 8 | 0.5612861846586279 |
+| 297.txt | 287 | 10 | 0.5826160286168451 |
+
+**Word Analogy**
+
+| Category | Total count | Accuracy | Mean rank |
+| :-: | :-: | :-: | :-: |
+| City | 175 | 0.9885714285714285 | 1.0171428571428571 |
+| Family | 272 | 0.3492647058823529 | 19849.15073529412 |
+| Capital | 506 | 0.8695652173913043 | 2.739130434782609 |
+| Total | 953 | 0.7429171038824763 | 5666.876180482686 |
+
+**文本分类**
+
+Accuracy = 93.9%
 
 # **JWE**
 
-# **Some algorithm can use pretrained embedding to improve?**
+## **wiki+sougou_news+dureader**
+
+```
+./jwe -train ../../corpus/rm_digit_and_non_chinese/corpus.complete -output-word ../../model/jwe/wiki_sougou_news_dureader/jwe_300.vec -output-char ../../model/jwe/wiki_sougou_news_dureader/jwe_300.char.vec -output-comp ../../model/jwe/wiki_sougou_news_dureader/jwe_300.comp.vec -size 300 -window 5 -sample 1e-4 -negative 10 -threads 3 -min-count 5 -binary 0 -comp ../subcharacter/comp.txt -char2comp ../subcharacter/char2comp.txt -join-type 1 -pos-type 3 -average-sum 1
+```
+
+**Word Similarity**
+
+| Dataset | Found | Not Found | Score(Spearman Correlation) |
+| :-: | :-: | :-: | :-: |
+| 240.txt | 232 | 8 | 0.5689040103723916 |
+| 297.txt | 287 | 10 | 0.6524769646538827 |
+
+**Word Analogy**
+
+| Category | Total count | Accuracy | Mean rank |
+| :-: | :-: | :-: | :-: |
+| City | 175 | 0.9828571428571429 | 1.0171428571428571 |
+| Family | 272 | 0.7683823529411765 | 2.5073529411764706 |
+| Capital | 506 | 0.8992094861660079 | 1.5197628458498025 |
+| Total | 953 | 0.8772298006295908 | 1.7093389296956978 |
+
+**文本分类**
+
+Accuracy = 93.625%
+
+# **TODO: Some algorithm can use pretrained embedding to improve?**
+
+# **Analysis**
+
+比较上述所有算法，统一用wiki+sougou_news+dureader训练，向量维度300。
+
+![algorithm_similarity](algorithm_similarity.png)
+
+![algorithm_analogy_em](algorithm_analogy_em.png)
+
+mean rank 超过100的截断为100。
+
+![algorithm_analogy_mr](algorithm_analogy_mr.png)
+
+![algorithm_classification](algorithm_classification.png)
