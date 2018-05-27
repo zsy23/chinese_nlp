@@ -623,9 +623,11 @@ Accuracy = 93.625%
 
 # **TODO: Some algorithm can use pretrained embedding to improve?**
 
-# **Analysis**
+# **Analysis**
 
 比较上述所有算法，统一用wiki+sougou_news+dureader训练，向量维度300。
+
+W2V(SG)--Word2Vec(Skip-Gram), W2V(CB)--Word2Vec(CBOW), GloVe, FT(SG)--FastText(Skip-Gram), FT(CB)--FastText(CBOW), CWE(SG)--CWE(Skip-Gram), CWE(CB)--CWE(CBOW), JWE
 
 ![algorithm_similarity](algorithm_similarity.png)
 
