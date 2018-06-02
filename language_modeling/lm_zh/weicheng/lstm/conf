@@ -1,0 +1,14 @@
+algo=lstm
+init_scale=0.1
+batch_size=20
+epoch=13
+embed_size=200
+hidden_size=200
+num_sampled=0
+lr=1.0
+lr_decay=0.5
+lr_keep_epoch=4
+keep_prob=1.0
+num_steps=20
+num_layers=2
+max_grad_norm=5.0

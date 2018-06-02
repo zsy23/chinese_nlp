@@ -1,0 +1,2 @@
+model_checkpoint_path: "gcnn"
+all_model_checkpoint_paths: "gcnn"
