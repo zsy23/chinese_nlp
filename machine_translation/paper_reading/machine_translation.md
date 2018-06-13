@@ -461,4 +461,102 @@ wordpiece模型使用数据驱动的方法，在给定逐步发展的词顶一�
 
 第二种处理OOV的方法是使用混合字／词模型。保持一个固定大小的词表，，并且把OOV表示成字序列，并且特殊的前缀加到字符前面，这个词缀不仅用来表示字符在词中的位置，并且用来和词表中的字符区分开来，总共有三种前缀，\<B>,\<M>,\<E>分别表示词头，词中间和词尾。这个处理在源句子和目标句子中都要进行。解码时输出的罕见词就是字符序列，并且可以通过前缀恢复出词序列。
 
-下面考虑训练标准。
+下面考虑训练标准。传统机器翻译模型优化目标如下：
+
+$$
+O_{ML}(\bold \theta) = \sum_{i=1}^N \log P_{\theta}(Y^i|X^i)
+$$ (2)
+
+尝试在训练好的机器翻译模型上再直接把BLEU分数作为reward进行训练，优化目标是期望reward：
+
+$$
+O_{RL}(\bold \theta)=\sum_{i=1}^N\sum_{Y^{pred}\in \mathscr Y}P_\theta (Y^{pred}|X^i)r(Y^{pred},Y^i)
+$$ (3)
+
+其中$r(Y^{pred}, Y^i)$表示推断翻译的得分，计算某个长度下的所有预测翻译的期望。
+
+BLEU在用于单个句子时有些缺点，因为BLEU本身是设计评价语料的，所以提出变种GLEU作为增强学习的reward。GLEU中，记录句子的所有1-gram，2-grams，3-grams，4-grams序列，然后计算召回率，即在ground truth中出现的所有共现子序列的比例，再计算准确率，即生成翻译中出现的所有共现子序列比例，最后GLEU分数就是召回率和准确率中的较小值。GLEU分数在0到1之间，并且交换ground truth和翻译句子，结果是对称的。作者称实验结果GLEU和BLEU成正关系，并且没有BLEU在单个句子上的缺点。
+
+按照通常增强学习的做法，需要把公式(3)中的$r(Y^{pred},Y^u)$减去reward的均值，这个均值可以从分布$P_\theta(Y^{pred}|X^i)$独立地采样$m$个句子来计算reward均值，作者把$m$设为15。为了使得训练更加稳定，采用公式(2)(3)的线性组合作为训练目标：
+
+$$
+O_{mixed}(\bold \theta)=\alpha\times O_{ML}(\bold \theta)+O_{RL}(\bold \theta)
+$$ (4)
+
+作者设$\alpha$为0.017。
+
+实际训练中，首先用公式(2)作为训练目标直到收敛，然后用公式(4)作为训练目标直到验证集上BLEU分数不再提高。第二步的训练是可选的。
+
+下面考虑模型和推断过程的量化处理。对于实现交互级翻译产品，推断过程太慢是个严重的问题。作者提出一种量化推断方法，使用低精度计算技术能够大幅度节省计算，但是这个方法只局限于谷歌才有的硬件设备上。为了降低量化处理所带来的误差，训练时模型需要有额外的限制，从而使得量化处理对结果的影响最小。
+
+回忆公式(1)中的两个累加变量：$\bold c_t^i$在时间方向上累加，$\bold x_t^i$在模型深度上累加，理论上这两个累加变量的范围是无限的，但是实际中发现它们的值都很小，因此为了量化推断，把他们的值限制在$[-\delta,\delta]$范围内，从而保证后续量化处理是在一个固定范围内进行的。公式(1)改为如下：
+
+$$
+\begin{aligned}
+{\bold c'}_t^i,{\bold m}_t^i&=LSTM_i({\bold c}_{t-1}^i,{\bold m}_{t-1}^i,{\bold x}_t^{i-1};{\bold W}^i) \\
+{\bold c}_t^i&=\max(-\delta,\min(\delta,{\bold c'}_t^i)) \\
+{\bold x'}_t^i&={\bold m}_t^i+{\bold x}_t^{i-1} \\
+{\bold x}_t^i&=\max(-\delta,\min(\delta,{\bold x'}_t^i)) \\
+{\bold c'}_t^{i+1},{\bold m}_t^{i+1}&=LSTM_{i+1}({\bold c}_{t-1}^{i+1},{\bold m}_{t-1}^{i+1},{\bold x}_t^i;{\bold W}^{i+1}) \\
+{\bold c}_t^{i+1}&=\max(-\delta,\min(\delta,{\bold c'}_t^{i+1}))
+\end{aligned}
+$$ (5)
+
+展开公式(5)中的$LSTM_i$来包含内部的门逻辑，为了简化，不写上标$i$：
+
+$$
+\begin{aligned}
+\bold W &= [\bold W_1, \bold W_2, \bold W_3, \bold W_4, \bold W_5, \bold W_6, \bold W_7, \bold W_8] \\
+\bold i_t&=sigmoid(\bold W_1 \bold x_t+\bold W_2 \bold m_t) \\
+\bold {i'}_t&=\tanh(\bold W_3 \bold x_t + \bold W_4 \bold m_t) \\
+\bold f_t &=sigmoid(\bold W_5 \bold x_t + \bold W_6 \bold m_t) \\
+\bold o_t &=sigmoid(\bold W_7 \bold x_t + \bold W_8 \bold m_t) \\
+\bold c_t &= \bold c_{t-1}\odot\bold f_t+\bold {i'}_t\odot\bold i_t \\
+\bold m_t &= \bold c_t \odot \bold o_t
+\end{aligned}
+$$ (6)
+
+当进行量化推断时，把公式(5)(6)中的所有浮点操作换为8-bit或者16-bit精度的定点整数操作。公式里的权重矩阵$\bold W$用8-bit整数矩阵$\bold {WQ}$和浮点向量$\bold s$表示如下：
+
+$$
+\begin{aligned}
+\bold s_i &= \max(abs(\bold W[i,:])) \\
+\bold{WQ}[i,j] &= round(\bold W[i,j]/\bold s_i \times 127.0)
+\end{aligned}
+$$ (7)
+
+所有的累加变量（$\bold c_t^i, \bold x_t^i$）表示为$[-\delta,\delta]$范围内的16-bit整数，所有的矩阵乘法使用8-bit整数乘法累加代替，其他所有操作，包括激活函数和逐元素操作都使用16-bit整数操作代替。
+
+接下来关注softmax层。在训练中，给定解码器的输出$\bold y_t$，计算所有候选输出符号上的概率$\bold p_t$如下：
+
+$$
+\begin{aligned}
+\bold v_t &= \bold W_s * \bold y_t \\
+\bold v'_t &= \max(-\gamma,\min(\gamma, \bold v_t)) \\
+\bold p_t &= softmax(\bold v'_t)
+\end{aligned}
+$$ (8)
+
+其中截断区间$\gamma$设为25。在量化推断时，权重矩阵$\bold W_s$替换为8-bit，矩阵乘法使用8-bit操作，softmax和注意力模型在推断时不做量化处理。
+
+值得重视的是，训练时是采用完整精度的浮点数的。训练时加到模型上的限制只有将累加变量截断到$[-\delta,\delta]$和将softmax logits截断到$[-\gamma,\gamma]$。$\gamma$固定为25，$\delta$从训练开始时的$\delta=8.0$逐渐变化为训练结束时的$\delta=1.0$，在推断时$\delta=1.0$。这些额外的限制没有影响模型的收敛，也没有影响模型最终的效果，甚至加约束的模型效果会更好一点，这可能是这些约束也起到了正则项的作用。
+
+以上这些量化处理只能在谷歌的TPU上进行。
+
+最后考虑解码器。使用束搜索进行推断，介绍两种改进方法：覆盖率惩罚和长度归一化。对于长度归一化，因为需要考虑不同长度的翻译出来的句子，如果不采取长度归一化，由于训练目标是负对数似然，所以长的句子一般得分都会比较低。最简单的长度归一化是把最终结果除以长度，然后可以使用启发式来改进，除以${length}^\alpha$，其中$0\lt \alpha \lt 1$，$\alpha$可以根据验证集进行优化（作者发现$\alpha \in [0.6-0.7]$是比较好的），最后采用了下面这个更好的得分函数，包括了覆盖率惩罚，使得翻译能够覆盖到整个源句子。使用如下的得分函数$s(Y,X)$来给候选翻译句子进行排序：
+
+$$
+\begin{aligned}
+s(Y,X)&=\log(P(Y|X))/lp(Y) + cp(X;Y) \\
+lp(Y)&=\frac{(5+|Y|)^\alpha}{(5+1)^\alpha} \\
+cp(X;Y)&=\beta * \sum_{i=1}^{|X|}\log(\min(\sum_{j=1}^{|Y|}p_{i,j},1.0))
+\end{aligned}
+$$ (9)
+
+其中$p_{i,j}$是第$j$个目标词注意第$i$个源词的概率，$\sum_{i=0}^{|X|}p_{i,j}=1$，参数$\alpha,\beta$分别控制长度归一化和覆盖惩罚的比例。
+
+在束搜索时，一般取8-12个翻译句子，但是发现只取2-4个翻译句子，只对BLEU得分有很小的影响。除此之外还采取两种剪枝策略，首先选取每个目标词时只考虑词概率最大的beamsize个，其次用公式(9)得到最终得分后，把所有可能翻译里最终得分小于最好得分的剪枝掉。采用上面两种剪枝后，可以提速30%-40%。作者设beamsize=3。
+
+为了加速decode速度，把句子长度类似的句子放在同一个batch中，使得更好利用并行性。束搜索只有当batch中所有句子的所有翻译可能都在束外才结束，虽然理论上这样会很低效，但实际只增加了很小的计算代价。
+
+作者还发现，当把长度归一化，覆盖率惩罚和增强学习一起使用时，长度归一化和覆盖惩罚起的作用很变小，这可能是增强学习已经考虑了上面两个因素。通过实验比较最后采用参数$\alpha=0.2,\beta=0.2$。
