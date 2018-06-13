@@ -560,3 +560,129 @@ $$ (9)
 为了加速decode速度，把句子长度类似的句子放在同一个batch中，使得更好利用并行性。束搜索只有当batch中所有句子的所有翻译可能都在束外才结束，虽然理论上这样会很低效，但实际只增加了很小的计算代价。
 
 作者还发现，当把长度归一化，覆盖率惩罚和增强学习一起使用时，长度归一化和覆盖惩罚起的作用很变小，这可能是增强学习已经考虑了上面两个因素。通过实验比较最后采用参数$\alpha=0.2,\beta=0.2$。
+
+## **[Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)**
+
+提出一种新型机器翻译模型架构，称为Transformer，完全建立在注意力机制上，不用RNN或者CNN。实验表明这种架构不仅效果更好，并行性也更好，能够极大地缩短训练时间。
+
+Transformer使用堆叠自注意力，并且编码器和解码器使用逐点全连接层，如下图所示：
+
+![transformer](transformer.png)
+
+编码器由6层相同网络堆叠而成，每一层包含两个子层，第一个是多头自注意力机制，第二个是简单的，逐位置全连接前馈网络。并且在两个子层都使用残差连接和层归一化。为了更好地利用残差连接，所有子层和词向量层的维度都设为$d_{model}=512$。
+
+解码器同样由6层相同网络堆叠而成，除了编码器中的两个子层外，添加了第三个子层，对编码器输出进行多头注意力机制。和编码器一样采用残差连接和层归一化，并且修改了自注意力机制，使得当前词的预测不受将来词的影响。
+
+注意力机制可以概括为，将一个query和一组键值对映射到输出上，其中query，键，值和输出都是向量。输出是值的加权和，这个权值由query和健计算得到。作者提出了“伸缩点乘注意力”，如下图所示：
+
+![scaled_dot_prod_attn](scaled_dot_prod_attn.png)
+
+输入包括$d_k$维的quey和键，$d_v$维的值。计算query和所有键的点乘，然后除以$\sqrt{d_k}$，然后利用softmax得到值的权重。实际操作时，把query,键和值都堆叠成矩阵$Q,K,V$，然后输出计算如下：
+
+$$
+Attention(Q,K,V)=softmax(\frac{QK^T}{\sqrt{d_k}})V
+$$ (1)
+
+除以$\sqrt{d_k}$是为了防止进入softmax的值太大而导致梯度太小。
+
+作者发现做多次注意力操作能够大大提升性能，计算公式如下：
+
+$$
+\begin{aligned}
+MultiHead(Q,K,V)&=Concat(head_1,...,head_h)W^O \\
+where\ head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)
+\end{aligned}
+$$ (2)
+
+其中$W^O\in R^{hd_v\times d_{model}},W^Q\in R^{d_{model \times d_k}},W^K\in R^{d_{model \times d_k}},W^V\in R^{d_{model \times d_v}}$是projection矩阵。采用$h=8$层并行注意力层，$d_k=d_v=d_{model}/h=64$，由于每一层维度的减少，最后计算代价和单层完整维度的注意力一样。
+
+Transformer中多头注意力用到下面三个地方：1. 编码器和解码器间的注意力，query来自前一个解码层，键和值来自编码器的输出，这使得解码器的每一个位置都可以注意输入序列的所有位置；2. 编码器有一个自注意力层。自注意力层里，query，键和值都来自同一个地方，也就是前一层编码器的输出，编码器可以注意到前一层编码器输出的所有位置；3. 同样解码器也有一个自注意力层，来注意直到当前位置的所有位置。为了保持自回归特性，在伸缩点积注意力中用$-\infty$去除softmax中不合理的输入。
+
+除了注意力子层外，编码器和解码器中每一层都包含一个全连接前馈网络，用来独立地作用到每一个位置上，具体如下：
+
+$$
+FFN(x)=\max(0,xW_1+b_1)W_2+b_2
+$$ (3)
+
+每一层的参数都不一样，输入和输出都是$d_{model}=512$，中间结果的维度为$d_{ff}=2048$。
+
+使用训练好的词向量将输入和输出转化为$d_{model}$维的向量，使用softmax得到下一个词的概率，输入和输出词向量层以及softmax前的线性变换层使用同一套参数矩阵，并且词向量层中，把权重乘以$\sqrt{d_{model}}$。
+
+由于提出的这个模型中没有使用RNN或者CNN，所以为了让模型使用序列顺序的信息，给序列中每个token添加了相对和绝对位置的信息，也就是添加了位置编码进编码器和解码器最底层的词向量中。位置编码也是$d_{model}$维的，这样可以和词向量相加，有多重位置编码的实现方法，作者使用了不同频率的sin和cos函数：
+
+$$
+\begin{aligned}
+PE_{(pos,2i)}&=\sin(pos/1000^{2i/d_{model}}) \\
+PE_{(pos,2i+1)}&=\cos(pos/1000^{2i/d_{model}})
+\end{aligned}
+$$ (4)
+
+其中$pos$是位置，$i$是维度。这样位置编码的每一个维度都对应一个正弦波，波长构成从$2\pi$到$1000\cdot 2\pi$的等比级数。选择这个函数是因为，它允许模型学习到相对位置上的注意力，因为对于固定的偏移$k$，$PE_{pos+k}$能够表示为$PE_{pos}$的线性组合。
+
+[代码地址](https://github.com/tensorflow/tensor2tensor)
+
+## **[Deliberation Networks: Sequence Generation Beyond One-Pass Decoding](https://papers.nips.cc/paper/6775-deliberation-networks-sequence-generation-beyond-one-pass-decoding.pdf)**
+
+传统的机器翻译模型解码器只进行一遍，这样就缺少了类似人类的推敲过程。作者提出将推敲结合近编码器解码器模型中，称为推敲网络，用来生成序列。推敲网络包含两遍解码过程，第一遍解码生成一个比较粗糙的序列，第二遍解码通过推敲打磨改善生成的序列。由于第二遍解码时有了关于生成序列的全局信息，可以通过查看将来的词来生成更好的序列。
+
+推敲网络包含编码器，第一遍解码器$D_1$和第二遍解码器$D_2$。推敲发生在第二遍解码过程，因此也称为推敲解码器。整体架构如下图所示：
+
+![deliberation](deliberation.png)
+
+下面为了叙述简洁，省略所有bias项。
+
+当输入序列$x$被输进编码器后，被编码为$T_x$个隐层状态$H={h_1,...,h_{T_x}}$，其中$T_x$是$x$的长度。具体地，$h_i=RNN(x_i,h_{i-1})$，其中$x_i$是$x$中第$i$个词，$h_0$是零向量。第一遍解码会生成一系列隐层状态$\hat{s_j},\forall j\in [T_{\hat y}]$和第一遍解码后的序列$\hat{y_j},\forall j\in [T_{\hat y}]$，其中$T_{\hat y}$是生成序列的长度。在第$j$步，$D_1$中的注意力模型首先计算上下文向量$ctx_e$如下：
+
+$$
+\begin{aligned}
+ctx_e &= \sum_{i=1}^{T_x}\alpha_i h_i \\
+\alpha_i &\propto \exp(v_\alpha^T\tanh(W_{att,h}^ch_i+W_{att,\hat s}^c\hat{s_{j-1}}))\ \forall i\in [T_x] \\
+\sum_{i=1}^{T_x}\alpha_i &= 1
+\end{aligned}
+$$ (1)
+
+有了$ctx_e$，$\hat s_j=RNN([\hat y_{J-1};ctx_e],\hat s_{j-1})$，得到$\hat s_j$后，另一个仿射变换应用到连接后的向量$[\hat s_j;ctx_e;\hat y_{j-1}]$上，最后将结果传给softmax层，$\hat y_j$在分布中采样得到。
+
+第一遍解码得到的$\hat y$被输入进第二遍解码做推敲。在时刻$t$，$D_2$把前一时刻隐层状态$s_{t-1}$，前一时刻输出$y_{t-1}$，源句子的上下文信息$ctx'_e$和第一遍解码的上下文信息$ctx_c$作为输入。两个细节：1. $ctx'_e$的计算和公式(1)类似，但有两个不同，首先是$\hat s_{j-1}$被替换为$s_{t-1}$，其次模型的参数不同；2. 为了得到$ctx_c$，$D_2$有一个注意力模型（上图中的$A_c$），能够将词$\hat y_j$和隐层状态$\hat s_j$映射到上下文向量中，具体计算如下：
+
+$$
+\begin{aligned}
+ctx_c &= \sum_{j=1}^{T_{\hat y}}\beta_j[\hat s_j;\hat y_j] \\
+\beta_j &\propto \exp(v_\beta^T\tanh(W_{att,\hat{sy}}^d[\hat s_j;\hat y_j]+W_{att,s}^ds_{t-1}))\ \forall j\in [T_{\hat y}] \\
+\sum_{j=1}^{T_{\hat y}}\beta_j &= 1
+\end{aligned}
+$$ (2)
+
+可以看到时刻$t$的推敲过程将用到第一遍解码得到的整个序列的信息。得到$ctx_c$后，计算$s_t=RNN([y_{t-1};ctx'_e;ctx_c],s_{t-1})$，类似于$D_1$中的$\hat y_t$，$[s_t;ctx'_e;ctx_c;y_{t-1}]$被用来生成$y_t$。
+
+$D_{XY}=\{(x^{(i)},y^{(i)})\}_{i=1}^n$表示$n$对句子的训练语料，编码器和两遍解码器的参数分别为$\theta_e,\theta_1,\theta_2$。序列到序列学习一般最大化对数似然$(1/n)\sum_{i=1}^n\log P(y_i|x_i)$，在推敲网络中，是最大化$(1/n)\sum_{(x,y)\in D_{XY}}J(x,y;\theta_e,\theta_1,\theta_2)$，其中
+
+$$
+J(x,y;\theta_e,\theta_1,\theta_2)=\log \sum_{y'\in Y}P(y|y',E(x;\theta_e);\theta_2)P(y'|E(x;\theta_e);\theta_1)
+$$ (3)
+
+其中$Y$表示所有可能的目标序列，$E(x;\theta_e)$表示把$x$映射到隐层状态的编码器函数，$J(x,y;\theta_e,\theta_1,\theta_2)$关于$\theta_1$的偏导数如下：
+
+![theta_1](theta_1.png)
+
+由于$Y$空间很大，所以很难计算，同样的关于$\theta_e,\theta_2$的偏导数也很难计算。为了克服这些困难，采用了基于蒙特卡洛的方法来优化$J(x,y;\theta_e,\theta_1,\theta_2)$的下边界。由于$J$关于$y'$是凹的，可以证明$J(x,y;\theta_e,\theta_1,\theta_2)\gt \tilde J(x,y;\theta_e,\theta_1,\theta_2)$，其中：
+
+$$
+\tilde J(x,y;\theta_e,\theta_1,\theta_2)=\sum_{y'\in Y}P(y'|E(x;\theta_e);\theta_1)\log P(y|y',E(x,\theta_e);\theta_2)
+$$ (4)
+
+把$\tilde J(x,y;\theta_e,\theta_1,\theta_2)$表示为$\tilde J$，$\tilde J$对于各个参数的梯度如下：
+
+![j_grad](j_grad.png)
+
+令$\Theta=[\theta_1;\theta_2;\theta_e]$，$G(x,y,y';\Theta)=[G_1;G_2;G_e]$。如果$y'$从分布$P(y'|E(x;\theta_e);\theta_1)$，$G(x,y,y';\Theta)$是$\tilde J$关于$\Theta$梯度的无偏估计。具体算法过程如下：
+
+![deliberation_algo](deliberation_algo.png)
+
+其中$Opt(...)$可以根据具体任务采用不同的优化方法，为了更好采样$y'$，使用束搜索。
+
+## **[Convolutional Sequence to Sequence Learning](https://arxiv.org/pdf/1705.03122.pdf)**
+
+
+
+[代码地址](https://github.com/facebookresearch/fairseq)
