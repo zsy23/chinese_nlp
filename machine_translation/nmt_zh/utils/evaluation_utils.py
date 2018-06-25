@@ -18,11 +18,13 @@ import codecs
 import os
 import re
 import subprocess
+import sys
+sys.path.append('..')
 
 import tensorflow as tf
 
-from ..scripts import bleu
-from ..scripts import rouge
+from scripts import bleu
+from scripts import rouge
 
 
 __all__ = ["evaluate"]

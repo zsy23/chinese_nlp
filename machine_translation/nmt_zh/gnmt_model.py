@@ -1,10 +1,14 @@
 import os
-import logging
 import tensorflow as tf
+import numpy as np
 
-from .utils import iterator_utils
-from .utils import evaluation_utils
-from .utils import misc_utils as utils
+from utils import iterator_utils
+from utils import vocab_utils
+from utils import evaluation_utils
+from utils import misc_utils as utils
+
+# If a vocab size is greater than this value, put the embedding on cpu instead
+VOCAB_SIZE_THRESHOLD_CPU = 50000
 
 class GNMTModel(object):
     """
@@ -17,22 +21,27 @@ class GNMTModel(object):
                 iterator,
                 source_vocab_table,
                 target_vocab_table,
-                source_vocab_size,
-                target_vocab_size,
                 reverse_target_vocab_table=None,
                 scope=None):
 
         assert isinstance(iterator, iterator_utils.BatchedInput)
+
+        self.hparams = hparams
         self.iterator = iterator
         self.mode = mode
         self.src_vocab_table = source_vocab_table
         self.tgt_vocab_table = target_vocab_table
-        self.src_vocab_size = source_vocab_size
-        self.tgt_vocab_size = target_vocab_size
-        self.hparams = hparams
-        self.logger = logging.getLogger('nmt_zh')
+        self.src_vocab_size = hparams.src_vocab_size
+        self.tgt_vocab_size = hparams.tgt_vocab_size
+        self.src_embed_size = hparams.embed_size
+        self.tgt_embed_size = hparams.embed_size
 
-        self.best_bleu = 0
+        self.num_encoder_layers = hparams.num_encoder_layers
+        self.num_decoder_layers = hparams.num_decoder_layers
+        assert self.num_encoder_layers
+        assert self.num_decoder_layers
+        self.num_encoder_residual_layers = hparams.num_encoder_residual_layers
+        self.num_decoder_residual_layers = hparams.num_decoder_residual_layers
 
         self.batch_size = tf.size(self.iterator.source_sequence_length)
 
@@ -40,6 +49,15 @@ class GNMTModel(object):
         initializer = self.get_initializer(
             hparams.init_op, hparams.random_seed, hparams.init_weight)
         tf.get_variable_scope().set_initializer(initializer)
+        
+        # Embeddings
+        self.init_embeddings(hparams, scope)
+
+        # Projection
+        with tf.variable_scope(scope or "build_network"):
+            with tf.variable_scope("decoder/output_projection"):
+                self.output_layer = tf.layers.Dense(
+                    self.tgt_vocab_size, use_bias=False, name="output_projection")
 
         self.build_graph(scope)
 
@@ -76,9 +94,6 @@ class GNMTModel(object):
             if hparams.optimizer == "sgd":
                 opt = tf.train.GradientDescentOptimizer(self.learning_rate)
             elif hparams.optimizer == "adam":
-                assert float(
-                    hparams.learning_rate
-                ) <= 0.001, "! High Adam learning rate %g" % hparams.learning_rate
                 opt = tf.train.AdamOptimizer(self.learning_rate)
 
             # Gradients
@@ -86,9 +101,9 @@ class GNMTModel(object):
                 self.train_loss,
                 params)
 
-            clipped_gradients, gradient_norm = tf.clip_by_global_norm(
+            clipped_gradients, self.grad_norm = tf.clip_by_global_norm(
                 gradients, hparams.max_gradient_norm)
-            gradient_norm_summary = [tf.summary.scalar("grad_norm", gradient_norm)]
+            gradient_norm_summary = [tf.summary.scalar("grad_norm", self.grad_norm)]
             gradient_norm_summary.append(
                 tf.summary.scalar("clipped_gradient", tf.global_norm(clipped_gradients)))
 
@@ -114,12 +129,13 @@ class GNMTModel(object):
                 self.infer_summary = tf.summary.image("attention_images", attention_images)
 
         # Saver
-        self.saver = tf.train.Saver(tf.global_variables())
+        self.saver = tf.train.Saver(
+            tf.global_variables(), max_to_keep=hparams.num_keep_ckpts)
 
         # Print trainable variables
-        self.logger.info("Trainable variables")
+        utils.log("Trainable variables")
         for param in params:
-            self.logger.info("%s, %s" % (param.name, str(param.get_shape())))
+            utils.log("%s, %s" % (param.name, str(param.get_shape())))
 
 
     def get_initializer(self, init_op, seed=None, init_weight=None):
@@ -146,18 +162,26 @@ class GNMTModel(object):
         """
 
         hparams = self.hparams
-        warmup_steps = hparams.learning_rate_warmup_steps
-        warmup_factor = hparams.learning_rate_warmup_factor
+        warmup_steps = hparams.warmup_steps
+        warmup_scheme = hparams.warmup_scheme
+        
+        utils.log("learning_rate=%g, warmup_steps=%d, warmup_scheme=%s" %
+                (hparams.learning_rate, warmup_steps, warmup_scheme))
 
         # Apply inverse decay if global steps less than warmup steps.
         # Inspired by https://arxiv.org/pdf/1706.03762.pdf (Section 5.3)
         # When step < warmup_steps,
         #   learing_rate *= warmup_factor ** (warmup_steps - step)
-        inv_decay = warmup_factor**(
-            tf.to_float(warmup_steps - self.global_step))
+        if warmup_scheme == "t2t":
+            # 0.01^(1/warmup_steps): we start with a lr, 100 times smaller
+            warmup_factor = tf.exp(tf.log(0.01) / warmup_steps)
+            inv_decay = warmup_factor**(
+                tf.to_float(warmup_steps - self.global_step))
+        else:
+            raise ValueError("Unknown warmup scheme %s" % warmup_scheme)
 
         return tf.cond(
-            self.global_step < hparams.learning_rate_warmup_steps,
+            self.global_step < hparams.warmup_steps,
             lambda: inv_decay * self.learning_rate,
             lambda: self.learning_rate,
             name="learning_rate_warump_cond")
@@ -168,28 +192,141 @@ class GNMTModel(object):
         """
 
         hparams = self.hparams
-        if (hparams.learning_rate_decay_scheme and
-            hparams.learning_rate_decay_scheme == "luong"):
-            start_decay_step = int(hparams.num_train_steps / 2)
-            decay_steps = int(hparams.num_train_steps / 10)  # decay 5 times
-            decay_factor = 0.5
-        else:
-            start_decay_step = hparams.start_decay_step
-            decay_steps = hparams.decay_steps
-            decay_factor = hparams.decay_factor
 
-        return tf.cond(
-            self.global_step < start_decay_step,
-            lambda: self.learning_rate,
-            lambda: tf.train.exponential_decay(
-                self.learning_rate,
-                (self.global_step - start_decay_step),
-                decay_steps, decay_factor, staircase=True),
-            name="learning_rate_decay_cond")
+        if hparams.decay_scheme in ["luong5", "luong10", "luong234"]:
+            decay_factor = 0.5
+            if hparams.decay_scheme == "luong5":
+                start_decay_step = int(hparams.num_train_steps / 2)
+                decay_times = 5
+            elif hparams.decay_scheme == "luong10":
+                start_decay_step = int(hparams.num_train_steps / 2)
+                decay_times = 10
+            elif hparams.decay_scheme == "luong234":
+                start_decay_step = int(hparams.num_train_steps * 2 / 3)
+                decay_times = 4
+            remain_steps = hparams.num_train_steps - start_decay_step
+            decay_steps = int(remain_steps / decay_times)
+        elif not hparams.decay_scheme:  # no decay
+            start_decay_step = hparams.num_train_steps
+            decay_steps = 0
+            decay_factor = 1.0
+        elif hparams.decay_scheme:
+            raise ValueError("Unknown decay scheme %s" % hparams.decay_scheme)
+        
+        utils.log("decay_scheme=%s, start_decay_step=%d, decay_steps %d, "
+                        "decay_factor %g" % (hparams.decay_scheme,
+                                            start_decay_step,
+                                            decay_steps,
+                                            decay_factor))
+
+        if hparams.decay_scheme in ["luong5", "luong10", "luong234"]:
+            return tf.cond(
+                self.global_step < start_decay_step,
+                lambda: self.learning_rate,
+                lambda: tf.train.exponential_decay(
+                    self.learning_rate,
+                    (self.global_step - start_decay_step),
+                    decay_steps, decay_factor, staircase=True),
+                name="learning_rate_decay_cond")
+        elif not hparams.decay_scheme:
+            return self.learning_rate
+
+    def get_embed_device(self, vocab_size):
+        """
+        Decide on which device to place an embed matrix given its vocab size.
+        """
+
+        if vocab_size > VOCAB_SIZE_THRESHOLD_CPU:
+            return "/cpu:0"
+        else:
+            return "/gpu:0"
+
+    def create_pretrained_emb_from_txt(self,
+        vocab_file, embed_file, num_trainable_tokens=3, dtype=tf.float32,
+        scope=None):
+        """
+        Load pretrain embeding from embed_file, and return an embedding matrix.
+        """
+
+        vocab, _ = vocab_utils.load_vocab(vocab_file)
+        trainable_tokens = vocab[:num_trainable_tokens]
+
+        utils.log("Using pretrained embedding: {}".format(embed_file))
+        utils.log("with trainable tokens: ")
+
+        emb_dict, emb_size = vocab_utils.load_embed_txt(embed_file)
+        for token in trainable_tokens:
+            utils.log("{}".format(token))
+            if token not in emb_dict:
+                emb_dict[token] = [0.0] * emb_size
+
+        emb_mat = np.array(
+            [emb_dict[token] for token in vocab], dtype=dtype.as_numpy_dtype())
+        emb_mat = tf.constant(emb_mat)
+        emb_mat_const = tf.slice(emb_mat, [num_trainable_tokens, 0], [-1, -1])
+        with tf.variable_scope(scope or "pretrain_embeddings", dtype=dtype) as scope:
+            with tf.device(self.get_embed_device(num_trainable_tokens)):
+                emb_mat_var = tf.get_variable(
+                    "emb_mat_var", [num_trainable_tokens, emb_size])
+
+        return tf.concat([emb_mat_var, emb_mat_const], 0)
+
+    def create_or_load_embed(self, embed_name, vocab_file, embed_file,
+                            vocab_size, embed_size, dtype):
+        """
+        Create a new or load an existing embedding matrix.
+        """
+
+        if vocab_file and embed_file:
+            embedding = self.create_pretrained_emb_from_txt(vocab_file, embed_file)
+        else:
+            with tf.device(self.get_embed_device(vocab_size)):
+                embedding = tf.get_variable(
+                    embed_name, [vocab_size, embed_size], dtype)
+        return embedding
+
+    def init_embeddings(self, hparams, scope, dtype=tf.float32):
+
+        src_vocab_size = self.src_vocab_size
+        tgt_vocab_size = self.tgt_vocab_size
+        src_embed_size = self.src_embed_size
+        tgt_embed_size = self.tgt_embed_size
+        src_vocab_file = hparams.src_vocab_file
+        tgt_vocab_file = hparams.tgt_vocab_file
+        src_embed_file = hparams.src_embed_file
+        tgt_embed_file = hparams.tgt_embed_file
+
+        with tf.variable_scope(
+            scope or "embeddings", dtype=dtype) as scope:
+
+            # Share embedding
+            if hparams.share_vocab:
+                if src_vocab_size != tgt_vocab_size:
+                    raise ValueError("Share embedding but different src/tgt vocab sizes"
+                                    " %d vs. %d" % (src_vocab_size, tgt_vocab_size))
+                assert src_embed_size == tgt_embed_size
+                utils.log("Use the same embedding for source and target")
+                vocab_file = src_vocab_file or tgt_vocab_file
+                embed_file = src_embed_file or tgt_embed_file
+
+                self.embedding_encoder = self.create_or_load_embed(
+                    "embedding_share", vocab_file, embed_file,
+                    src_vocab_size, src_embed_size, dtype)
+                self.embedding_decoder = self.embedding_encoder
+            else:
+                with tf.variable_scope("encoder"):
+                    self.embedding_encoder = self.create_or_load_embed(
+                        "embedding_encoder", src_vocab_file, src_embed_file,
+                        src_vocab_size, src_embed_size, dtype)
+
+                with tf.variable_scope("decoder"):
+                    self.embedding_decoder = self.create_or_load_embed(
+                        "embedding_decoder", tgt_vocab_file, tgt_embed_file,
+                        tgt_vocab_size, tgt_embed_size, dtype)
 
     def build_graph(self, scope):
         
-        self.logger.info('Creating {} graph ...'.format(self.mode))
+        utils.log('Creating {} graph ...'.format(self.mode))
 
         dtype = tf.float32
 
@@ -220,7 +357,7 @@ class GNMTModel(object):
 
 
     def make_cell(self, unit_type, num_units, forget_bias, dropout,
-                    mode, residual_connection=False):
+                    mode, residual_connection=False, residual_fn=None):
 
         """
         Create an instance of a single RNN cell.
@@ -241,6 +378,8 @@ class GNMTModel(object):
                 num_units,
                 forget_bias=forget_bias,
                 layer_norm=True)
+        elif unit_type == "nas":
+            cell = tf.contrib.rnn.NASCell(num_units)
         else:
             raise ValueError("Unknown unit type %s!" % unit_type)
 
@@ -251,13 +390,14 @@ class GNMTModel(object):
 
         # Residual
         if residual_connection:
-            cell = tf.contrib.rnn.ResidualWrapper(cell)
+            cell = tf.contrib.rnn.ResidualWrapper(
+                cell, residual_fn=residual_fn)
 
         return cell
 
 
     def make_cell_list(self, unit_type, num_units, num_layers, num_residual_layers,
-                forget_bias, dropout, mode):
+                forget_bias, dropout, mode, residual_fn=None):
         """
         Create a list of RNN cells.
         """
@@ -270,7 +410,8 @@ class GNMTModel(object):
                 forget_bias=forget_bias,
                 dropout=dropout,
                 mode=mode,
-                residual_connection=(i >= num_layers - num_residual_layers)
+                residual_connection=(i >= num_layers - num_residual_layers),
+                residual_fn=residual_fn
             )
             cell_list.append(cell)
 
@@ -299,32 +440,23 @@ class GNMTModel(object):
 
         iterator = self.iterator
         hparams = self.hparams
+
         num_bi_layers = 1
-        num_bi_residual_layers = 0
-        num_uni_layers = hparams.num_layers - num_bi_layers
-        if hparams.residual and hparams.num_layers > 1:
-            num_uni_residual_layers = hparams.num_layers - 2
-        else:
-            num_uni_residual_layers = 0
+        num_uni_layers = self.num_encoder_layers - num_bi_layers
 
         with tf.variable_scope("encoder") as scope:
             dtype = scope.dtype
 
-            with tf.variable_scope("embedding") as scope:
-                self.embedding_encoder = tf.get_variable(
-                    "embedding_encoder", 
-                    [self.src_vocab_size, hparams.embed_size], dtype)
-
-                self.encoder_emb_inp = tf.nn.embedding_lookup(
-                    self.embedding_encoder,
-                    iterator.source)
+            self.encoder_emb_inp = tf.nn.embedding_lookup(
+                self.embedding_encoder,
+                iterator.source)
             
             with tf.variable_scope("bidirectional_rnn") as scope:
                 fw_cell = self.create_rnn_cell(
                     unit_type=hparams.unit_type,
                     num_units=hparams.hidden_size,
                     num_layers=num_bi_layers,
-                    num_residual_layers=num_bi_residual_layers,
+                    num_residual_layers=0,
                     forget_bias=hparams.forget_bias,
                     dropout=hparams.dropout,
                     mode=self.mode)
@@ -332,7 +464,7 @@ class GNMTModel(object):
                     unit_type=hparams.unit_type,
                     num_units=hparams.hidden_size,
                     num_layers=num_bi_layers,
-                    num_residual_layers=num_bi_residual_layers,
+                    num_residual_layers=0,
                     forget_bias=hparams.forget_bias,
                     dropout=hparams.dropout,
                     mode=self.mode)
@@ -352,7 +484,7 @@ class GNMTModel(object):
                     unit_type=hparams.unit_type,
                     num_units=hparams.hidden_size,
                     num_layers=num_uni_layers,
-                    num_residual_layers=num_uni_residual_layers,
+                    num_residual_layers=self.num_encoder_residual_layers,
                     forget_bias=hparams.forget_bias,
                     dropout=hparams.dropout,
                     mode=self.mode)
@@ -409,10 +541,6 @@ class GNMTModel(object):
         memory = self.encoder_outputs
         source_sequence_length = self.iterator.source_sequence_length
         beam_width = hparams.beam_width
-        if hparams.residual and hparams.num_layers > 1:
-            num_residual_layers = hparams.num_layers - 2
-        else:
-            num_residual_layers = 0
 
         if self.mode == tf.contrib.learn.ModeKeys.INFER and beam_width > 0:
             memory = tf.contrib.seq2seq.tile_batch(
@@ -423,6 +551,7 @@ class GNMTModel(object):
                 self.encoder_state, multiplier=beam_width)
             batch_size = self.batch_size * beam_width
         else:
+            encoder_state = self.encoder_state
             batch_size = self.batch_size
 
         attention_mechanism = self.create_attention_mechanism(
@@ -431,11 +560,12 @@ class GNMTModel(object):
         cell_list = self.make_cell_list(
             unit_type=hparams.unit_type,
             num_units=hparams.hidden_size,
-            num_layers=hparams.num_layers,
-            num_residual_layers=num_residual_layers,
+            num_layers=self.num_decoder_layers,
+            num_residual_layers=self.num_decoder_residual_layers,
             forget_bias=hparams.forget_bias,
             dropout=hparams.dropout,
-            mode=self.mode)
+            mode=self.mode,
+            residual_fn=gnmt_residual_fn)
         
         # Only wrap the bottom layer with the attention mechanism.
         attention_cell = cell_list.pop(0)
@@ -452,7 +582,7 @@ class GNMTModel(object):
             alignment_history=alignment_history,
             name="attention")
         
-        cell = GNMTAttentionMultiCell(attention_cell, cell_list)
+        cell = GNMTAttentionMultiCell(attention_cell, cell_list, use_new_attention=True)
 
         decoder_initial_state = tuple(
             zs.clone(cell_state=es)
@@ -485,20 +615,9 @@ class GNMTModel(object):
         with tf.variable_scope("decoder") as scope:
             dtype = scope.dtype
 
-            with tf.variable_scope("embedding") as scope:
-                self.embedding_decoder = tf.get_variable(
-                    "embedding_decoder", 
-                    [self.tgt_vocab_size, hparams.embed_size], dtype)
-
             cell, decoder_initial_state = self.make_decoder_cell()
 
-            with tf.variable_scope("output_projection"):
-                self.output_layer = tf.layers.Dense(
-                    self.tgt_vocab_size, 
-                    use_bias=False, 
-                    name="output_projection")
-
-            ## train or eval
+            # train or eval
             if self.mode != tf.contrib.learn.ModeKeys.INFER:
                 self.decoder_emb_inp = tf.nn.embedding_lookup(
                     self.embedding_decoder, 
@@ -518,7 +637,8 @@ class GNMTModel(object):
                 # Dynamic decoding
                 outputs, self.final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
                     decoder,
-                    swap_memory=True)
+                    swap_memory=True,
+                    scope=scope)
 
                 self.sample_id = outputs.sample_id
 
@@ -549,8 +669,15 @@ class GNMTModel(object):
                         length_penalty_weight=length_penalty_weight)
                 else:
                     # Helper
-                    helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                        self.embedding_decoder, start_tokens, end_token)
+                    sampling_temperature = hparams.sampling_temperature
+                    if sampling_temperature > 0.0:
+                        helper = tf.contrib.seq2seq.SampleEmbeddingHelper(
+                            self.embedding_decoder, start_tokens, end_token,
+                            softmax_temperature=sampling_temperature,
+                            seed=hparams.random_seed)
+                    else:
+                        helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                            self.embedding_decoder, start_tokens, end_token)
 
                     # Decoder
                     decoder = tf.contrib.seq2seq.BasicDecoder(
@@ -564,7 +691,8 @@ class GNMTModel(object):
                 outputs, self.final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
                     decoder,
                     maximum_iterations=maximum_iterations,
-                    swap_memory=True)
+                    swap_memory=True,
+                    scope=scope)
 
                 if beam_width > 0:
                     self.logits = tf.no_op()
@@ -581,7 +709,9 @@ class GNMTModel(object):
                         self.train_summary,
                         self.global_step,
                         self.word_count,
-                        self.batch_size])
+                        self.batch_size,
+                        self.grad_norm,
+                        self.learning_rate])
 
     def eval(self, sess):
         assert self.mode == tf.contrib.learn.ModeKeys.EVAL
@@ -596,6 +726,20 @@ class GNMTModel(object):
                         self.sample_id, 
                         self.sample_words
         ])
+
+    def decode(self, sess):
+        """
+        Decode a batch.
+        """
+        _, infer_summary, _, sample_words = self.infer(sess)
+
+        # make sure outputs is of shape [batch_size, time] or [beam_width,
+        # batch_size, time] when using beam search.
+        if sample_words.ndim == 3:  # beam search output in [batch_size,
+                                    # time, beam_width] shape.
+            sample_words = sample_words.transpose([2, 0, 1])
+        
+        return sample_words, infer_summary
 
     def compute_perplexity(self, sess, name):
         """
@@ -614,7 +758,7 @@ class GNMTModel(object):
                 break
 
         perplexity = utils.safe_exp(total_loss / total_predict_count)
-        self.logger.info("{} perplexity: %.2f".format(name, perplexity))
+        utils.log("%s perplexity: %.2f" % (name, perplexity))
         
         return perplexity
 
@@ -625,43 +769,41 @@ class GNMTModel(object):
                             ref_file,
                             beam_width,
                             tgt_eos,
-                            num_translations_per_input=1,
-                            decode=True):
+                            num_translations_per_input=1):
         """
         Decode a test set and compute a score according to the evaluation task.
         """
 
         # Decode
-        if decode:
-            self.logger.info("Decoding to output {}.".format(trans_file))
+        utils.log("Decoding to output {}.".format(trans_file))
 
-            num_sentences = 0
-            with open(trans_file, 'w', encoding='utf-8') as trans_f:
-                trans_f.write("")  # Write empty string to ensure file is created.
+        num_sentences = 0
+        with open(trans_file, 'w', encoding='utf-8') as trans_f:
+            trans_f.write("")  # Write empty string to ensure file is created.
 
-                num_translations_per_input = max(
-                    min(num_translations_per_input, beam_width), 1)
-                while True:
-                    try:
-                        _, _, _, nmt_outputs = self.infer(sess)
-                        if beam_width == 0:
-                            nmt_outputs = np.expand_dims(nmt_outputs, 0)
+            num_translations_per_input = max(
+                min(num_translations_per_input, beam_width), 1)
+            while True:
+                try:
+                    nmt_outputs, _ = self.decode(sess)
+                    if beam_width == 0:
+                        nmt_outputs = np.expand_dims(nmt_outputs, 0)
 
-                        batch_size = nmt_outputs.shape[1]
-                        num_sentences += batch_size
+                    batch_size = nmt_outputs.shape[1]
+                    num_sentences += batch_size
 
-                        for sent_id in range(batch_size):
-                            for beam_id in range(num_translations_per_input):
-                                translation = utils.get_translation(
-                                    nmt_outputs[beam_id],
-                                    sent_id,
-                                    tgt_eos=tgt_eos)
-                                trans_f.write(translation + "\n")
-                    except tf.errors.OutOfRangeError:
-                        self.logger.info(
-                            "Done, num sentences %d, num translations per input %d" %
-                            (num_sentences, num_translations_per_input))
-                        break
+                    for sent_id in range(batch_size):
+                        for beam_id in range(num_translations_per_input):
+                            translation = utils.get_translation(
+                                nmt_outputs[beam_id],
+                                sent_id,
+                                tgt_eos=tgt_eos)
+                            trans_f.write(translation + "\n")
+                except tf.errors.OutOfRangeError:
+                    utils.log(
+                        "Done, num sentences %d, num translations per input %d" %
+                        (num_sentences, num_translations_per_input))
+                    break
 
         # Evaluation
         evaluation_scores = {}
@@ -671,7 +813,7 @@ class GNMTModel(object):
                 trans_file,
                 'BLEU')
             evaluation_scores['BLEU'] = score
-            self.logger.info("%s BLEU: %.1f" % (name, score))
+            utils.log("%s BLEU: %.1f" % (name, score))
 
         return evaluation_scores
 
@@ -681,11 +823,12 @@ class GNMTAttentionMultiCell(tf.nn.rnn_cell.MultiRNNCell):
     A MultiCell with GNMT attention style.
     """
 
-    def __init__(self, attention_cell, cells):
+    def __init__(self, attention_cell, cells, use_new_attention=False):
         """
         Creates a GNMTAttentionMultiCell.
         """
         cells = [attention_cell] + cells
+        self.use_new_attention = use_new_attention
         super(GNMTAttentionMultiCell, self).__init__(cells, state_is_tuple=True)
 
     def __call__(self, inputs, state, scope=None):
@@ -712,14 +855,27 @@ class GNMTAttentionMultiCell(tf.nn.rnn_cell.MultiRNNCell):
                     cell = self._cells[i]
                     cur_state = state[i]
 
-                    if not isinstance(cur_state, tf.contrib.rnn.LSTMStateTuple):
-                        raise TypeError("`state[{}]` must be a LSTMStateTuple".format(i))
-
-                    cur_state = cur_state._replace(h=tf.concat(
-                        [cur_state.h, new_attention_state.attention], 1))
+                    if self.use_new_attention:
+                        cur_inp = tf.concat([cur_inp, new_attention_state.attention], -1)
+                    else:
+                        cur_inp = tf.concat([cur_inp, attention_state.attention], -1)
 
                     cur_inp, new_state = cell(cur_inp, cur_state)
                     new_states.append(new_state)
 
         return cur_inp, tuple(new_states)
         
+def gnmt_residual_fn(inputs, outputs):
+    """
+    Residual function that handles different inputs and outputs inner dims.
+    """
+    def split_input(inp, out):
+        out_dim = out.get_shape().as_list()[-1]
+        inp_dim = inp.get_shape().as_list()[-1]
+        return tf.split(inp, [out_dim, inp_dim - out_dim], axis=-1)
+    actual_inputs, _ = tf.contrib.framework.nest.map_structure(split_input, inputs, outputs)
+    def assert_shape_match(inp, out):
+        inp.get_shape().assert_is_compatible_with(out.get_shape())
+    tf.contrib.framework.nest.assert_same_structure(actual_inputs, outputs)
+    tf.contrib.framework.nest.map_structure(assert_shape_match, actual_inputs, outputs)
+    return tf.contrib.framework.nest.map_structure(lambda inp, out: inp + out, actual_inputs, outputs)
