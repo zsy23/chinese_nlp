@@ -8,4 +8,4 @@
 
 **[natural_language_inference/](natural_language_inference/)**：第三届魔镜杯智能客服问题相似比赛代码
 
-**[machine_reading_comprehension/](machine_reading_comprehension/)**：2018机器阅读理解技术竞赛代码，Log，模型和验证集，测试集结果以及技术报告
+**[machine_reading_comprehension/](machine_reading_comprehension/)**：2018机器阅读理解技术竞赛**第十名**代码，Log，模型和验证集，测试集结果以及技术报告
